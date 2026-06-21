@@ -1,0 +1,145 @@
+// Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Dual-licensed — see LICENSE for details.
+
+package telemetry
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"sync"
+)
+
+// HTTPListener is a passive telemetry receiver that mounts onto an existing
+// HTTP server. Instead of binding its own socket, it exposes a net/http
+// handler that the API router registers on a specific path (e.g.,
+// POST /api/v1/telemetry). The listener receives telemetry via HTTP
+// requests and forwards it to the ingest callback.
+//
+// A passive monitoring point (MonitorPoint with Mode=ModePassive and
+// Type="webhook") corresponds to an HTTPListener configuration. The
+// MonitorPoint.Config field stores the listener-specific settings (path,
+// auth method); the HTTPListener implementation provides the runtime
+// handler that processes incoming requests.
+//
+// The builtin webhook listener (pkg/telemetry/http) implements this
+// interface. callers may provide additional HTTP listeners that
+// expose different endpoint shapes (e.g., ingestion APIs with richer
+// authentication).
+//
+// Implementations must be safe for concurrent use.
+type HTTPListener interface {
+	// Type returns the listener type identifier (e.g., "webhook").
+	Type() string
+	// Handler returns the HTTP handler for the telemetry endpoint. The
+	// ingest callback is invoked for each received telemetry; it is
+	// typically wired to telemetry.Collector.Submit by the caller.
+	// The handler must not close the ingest callback or retain it
+	// beyond the request lifetime.
+	Handler(ingest func(context.Context, *Telemetry)) http.HandlerFunc
+}
+
+// ProtocolListener is a passive telemetry listener that binds its own
+// protocol-specific listener socket (e.g., Syslog UDP, SNMP UDP, MQTT TCP).
+// It owns its full lifecycle (Start/Stop) and invokes the ingest callback
+// for each received message.
+//
+// A passive monitoring point (MonitorPoint with Mode=ModePassive) whose
+// Type matches a ProtocolListener's Type() corresponds to that listener's
+// configuration. The pro edition persists these configurations in the
+// monitor_points table and starts the matching ProtocolListener for each
+// enabled passive point.
+//
+// The default deployment does not ship any ProtocolListener implementations;
+// they are provided by callers (Syslog, SNMP, MQTT). The SPI
+// lives in the kernel so callers plug in via the
+// ListenerRegistry without modifying core code.
+//
+// Implementations must be safe for concurrent use and support graceful
+// cancellation via the context passed to Start.
+type ProtocolListener interface {
+	// Type returns the listener type identifier (e.g., "syslog", "snmp",
+	// "mqtt").
+	Type() string
+	// Start begins receiving data and invokes the ingest callback for each
+	// received message. Start is idempotent and safe to call once per
+	// instance. The listener must respect ctx cancellation and stop
+	// receiving when ctx is done.
+	Start(ctx context.Context, ingest func(context.Context, *Telemetry)) error
+	// Stop gracefully shuts down the listener, releasing all resources
+	// (sockets, goroutines, connections). Stop is idempotent and safe to
+	// call multiple times.
+	Stop(ctx context.Context) error
+}
+
+// ListenerRegistry manages HTTPListener and ProtocolListener registration
+// and lookup. It is the SPI registration point for passive telemetry
+// receivers: the kernel registers builtin HTTP listeners
+// (webhook), and callers may register protocol listeners (Syslog,
+// SNMP, MQTT) via this registry at startup.
+//
+// The registry is safe for concurrent use.
+type ListenerRegistry struct {
+	mu                sync.RWMutex
+	httpListeners     map[string]HTTPListener
+	protocolListeners map[string]ProtocolListener
+}
+
+// NewListenerRegistry creates an empty listener registry.
+func NewListenerRegistry() *ListenerRegistry {
+	return &ListenerRegistry{
+		httpListeners:     make(map[string]HTTPListener),
+		protocolListeners: make(map[string]ProtocolListener),
+	}
+}
+
+// RegisterHTTP adds an HTTPListener. Returns an error if a listener with
+// the same Type() is already registered.
+func (r *ListenerRegistry) RegisterHTTP(l HTTPListener) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	t := l.Type()
+	if _, exists := r.httpListeners[t]; exists {
+		return fmt.Errorf("telemetry: http listener for %q already registered", t)
+	}
+	r.httpListeners[t] = l
+	return nil
+}
+
+// RegisterProtocol adds a ProtocolListener. Returns an error if a listener
+// with the same Type() is already registered.
+func (r *ListenerRegistry) RegisterProtocol(l ProtocolListener) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	t := l.Type()
+	if _, exists := r.protocolListeners[t]; exists {
+		return fmt.Errorf("telemetry: protocol listener for %q already registered", t)
+	}
+	r.protocolListeners[t] = l
+	return nil
+}
+
+// ListHTTP returns all registered HTTPListeners. The order is not
+// guaranteed.
+func (r *ListenerRegistry) ListHTTP() []HTTPListener {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	listeners := make([]HTTPListener, 0, len(r.httpListeners))
+	for _, l := range r.httpListeners {
+		listeners = append(listeners, l)
+	}
+	return listeners
+}
+
+// ListProtocol returns all registered ProtocolListeners. The order is not
+// guaranteed.
+func (r *ListenerRegistry) ListProtocol() []ProtocolListener {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	listeners := make([]ProtocolListener, 0, len(r.protocolListeners))
+	for _, l := range r.protocolListeners {
+		listeners = append(listeners, l)
+	}
+	return listeners
+}

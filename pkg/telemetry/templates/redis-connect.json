@@ -1,0 +1,12 @@
+{
+    "name": "Redis Connect",
+    "description": "Redis connection probe checking TCP port reachability and AUTH response",
+    "category": "database",
+    "executor_type": "redis",
+    "config": {
+        "port": 6379,
+        "banner_check": true,
+        "timeout": 5,
+        "interval": 60
+    }
+}

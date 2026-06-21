@@ -1,0 +1,32 @@
+// Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Dual-licensed — see LICENSE for details.
+
+// Animation design tokens
+// Aligned with the prototype tokens.css duration and easing system
+// (Tickraft Design System "Signal Observatory").
+:root {
+  // ===== Animation durations (prototype scale) =====
+  --tk-duration-instant: 0.05s;
+  --tk-duration-fast: 0.15s;
+  --tk-duration-base: 0.25s;
+  --tk-duration-slow: 0.4s;
+  --tk-duration-slower: 0.6s;
+
+  // App-specific aliases (components reference these)
+  --tk-animation-duration-fast: var(--tk-duration-fast);
+  --tk-animation-duration-base: var(--tk-duration-base);
+  --tk-animation-duration-slow: var(--tk-duration-slow);
+
+  // App-specific transition shorthands (duration + easing)
+  --tk-transition-fast: var(--tk-duration-fast) var(--tk-ease-in-out);
+  --tk-transition-base: var(--tk-duration-base) var(--tk-ease-in-out);
+  --tk-transition-slow: var(--tk-duration-slow) var(--tk-ease-in-out);
+
+  // ===== Easing functions (prototype) =====
+  --tk-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --tk-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --tk-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --tk-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --tk-ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}

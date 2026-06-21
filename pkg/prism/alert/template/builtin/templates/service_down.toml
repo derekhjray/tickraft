@@ -1,0 +1,27 @@
+# Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Dual-licensed — see LICENSE for details.
+
+id = "service_down"
+name = "Service Down"
+description = "Fires when a monitored service becomes unreachable or stops responding"
+alert_type = "generic"
+variables = ["asset_name", "alert_type"]
+styles = ["concise", "detailed", "technical"]
+channel_hints = ["email", "sms", "im"]
+
+[translations.en-US]
+"title.concise" = "Alert: service down"
+"title.detailed" = "Service {{.asset_name}} is down"
+"title.technical" = "ALERT[generic] service={{.asset_name}} status=down"
+"description.concise" = "{{.asset_name}} unreachable"
+"description.detailed" = "Service {{.asset_name}} is not responding to health checks. Please investigate immediately."
+"description.technical" = "service={{.asset_name}} status=down check=health"
+
+[translations.zh-Hans]
+"title.concise" = "告警：服务宕机"
+"title.detailed" = "服务 {{.asset_name}} 已宕机"
+"title.technical" = "ALERT[generic] service={{.asset_name}} status=down"
+"description.concise" = "{{.asset_name}} 不可达"
+"description.detailed" = "服务 {{.asset_name}} 未响应健康检查，请立即排查。"
+"description.technical" = "service={{.asset_name}} status=down check=health"

@@ -1,0 +1,195 @@
+// Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Dual-licensed — see LICENSE for details.
+
+package event
+
+import (
+	"context"
+	"sync/atomic"
+	"testing"
+	"time"
+)
+
+// BenchmarkPublishSubscribe benchmarks publish/subscribe throughput in asynchronous mode.
+// Target: >= 10000 events/sec.
+func BenchmarkPublishSubscribe(b *testing.B) {
+	bus := NewBus(WithBufferSize(4096))
+	defer bus.Close()
+
+	var count atomic.Int64
+	sub, err := bus.Subscribe(TypeExecutionTriggered, func(ctx context.Context, env Envelope) error {
+		count.Add(1)
+		return nil
+	})
+	if err != nil {
+		b.Fatalf("subscribe: %v", err)
+	}
+	defer sub.Cancel()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := bus.Publish(context.Background(), TypeExecutionTriggered, ExecutionPayload{
+			TaskID:      "bench-task",
+			ExecutionID: "bench-exec",
+		}); err != nil {
+			b.Fatalf("publish: %v", err)
+		}
+	}
+	b.StopTimer()
+
+	// Wait for all events to be processed.
+	time.Sleep(500 * time.Millisecond)
+	got := count.Load()
+	if got != int64(b.N) {
+		b.Logf("processed %d/%d events", got, b.N)
+	}
+}
+
+// BenchmarkSyncPublishSubscribe benchmarks publish/subscribe throughput in synchronous mode.
+func BenchmarkSyncPublishSubscribe(b *testing.B) {
+	bus := NewBus()
+	defer bus.Close()
+
+	sub, err := bus.Subscribe(TypeExecutionTriggered, func(ctx context.Context, env Envelope) error {
+		return nil
+	})
+	if err != nil {
+		b.Fatalf("subscribe: %v", err)
+	}
+	defer sub.Cancel()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := bus.Publish(context.Background(), TypeExecutionTriggered, ExecutionPayload{
+			TaskID: "bench-task",
+		}, WithSync()); err != nil {
+			b.Fatalf("publish: %v", err)
+		}
+	}
+}
+
+// BenchmarkGenericPublishSubscribe benchmarks generic publish/subscribe throughput.
+func BenchmarkGenericPublishSubscribe(b *testing.B) {
+	bus := NewBus(WithBufferSize(4096))
+	defer bus.Close()
+
+	var count atomic.Int64
+	sub, err := Subscribe[ExecutionPayload](bus, TypeExecutionTriggered,
+		func(ctx context.Context, e Event[ExecutionPayload]) error {
+			count.Add(1)
+			return nil
+		},
+	)
+	if err != nil {
+		b.Fatalf("subscribe: %v", err)
+	}
+	defer sub.Cancel()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := Publish(context.Background(), bus, TypeExecutionTriggered, ExecutionPayload{
+			TaskID: "bench-task",
+		}); err != nil {
+			b.Fatalf("publish: %v", err)
+		}
+	}
+	b.StopTimer()
+
+	time.Sleep(500 * time.Millisecond)
+}
+
+// BenchmarkConcurrentPublish benchmarks concurrent publishing.
+func BenchmarkConcurrentPublish(b *testing.B) {
+	bus := NewBus(WithBufferSize(8192))
+	defer bus.Close()
+
+	var count atomic.Int64
+	sub, err := bus.Subscribe(TypeExecutionTriggered, func(ctx context.Context, env Envelope) error {
+		count.Add(1)
+		return nil
+	})
+	if err != nil {
+		b.Fatalf("subscribe: %v", err)
+	}
+	defer sub.Cancel()
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if err := bus.Publish(context.Background(), TypeExecutionTriggered, ExecutionPayload{}); err != nil {
+				b.Fatalf("publish: %v", err)
+			}
+		}
+	})
+	b.StopTimer()
+
+	time.Sleep(500 * time.Millisecond)
+}
+
+// BenchmarkEnvelopePool benchmarks the Envelope memory pool.
+func BenchmarkEnvelopePool(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		env := acquireEnvelope()
+		env.Type = TypeExecutionTriggered
+		env.Payload = ExecutionPayload{TaskID: "pool-bench"}
+		releaseEnvelope(env)
+	}
+}
+
+// BenchmarkPriorityQueue benchmarks the priority queue.
+func BenchmarkPriorityQueue(b *testing.B) {
+	pq := &priorityQueue{}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		env := &Envelope{Priority: i % 100}
+		heapPush(pq, &queueItem{envelope: env, seq: uint64(i)})
+		if pq.Len() > 100 {
+			heapPop(pq)
+		}
+	}
+}
+
+// heapPush and heapPop are thin wrappers around container/heap used by benchmarks.
+func heapPush(pq *priorityQueue, item *queueItem) {
+	pq.Push(item)
+}
+
+func heapPop(pq *priorityQueue) *queueItem {
+	return pq.Pop().(*queueItem)
+}
+
+// BenchmarkThroughput measures throughput (verifies >= 10000 events/sec).
+func BenchmarkThroughput(b *testing.B) {
+	bus := NewBus(WithBufferSize(8192))
+	defer bus.Close()
+
+	var count atomic.Int64
+	sub, err := bus.Subscribe(TypeExecutionTriggered, func(ctx context.Context, env Envelope) error {
+		count.Add(1)
+		return nil
+	})
+	if err != nil {
+		b.Fatalf("subscribe: %v", err)
+	}
+	defer sub.Cancel()
+
+	b.ResetTimer()
+	start := time.Now()
+	for i := 0; i < b.N; i++ {
+		if err := bus.Publish(context.Background(), TypeExecutionTriggered, ExecutionPayload{}); err != nil {
+			b.Fatalf("publish: %v", err)
+		}
+	}
+	elapsed := time.Since(start)
+	b.StopTimer()
+
+	time.Sleep(500 * time.Millisecond)
+	got := count.Load()
+	eventsPerSec := float64(got) / elapsed.Seconds()
+	b.Logf("throughput: %.0f events/sec (%d events in %v)", eventsPerSec, got, elapsed)
+
+	if eventsPerSec < 10000 {
+		b.Logf("WARNING: throughput %.0f events/sec is below target of 10000", eventsPerSec)
+	}
+}

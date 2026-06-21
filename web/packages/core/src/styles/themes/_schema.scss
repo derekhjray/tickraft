@@ -1,0 +1,220 @@
+// Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Dual-licensed — see LICENSE for details.
+
+// =============================================================================
+// Color schema override surface
+// =============================================================================
+//
+// [File positioning]
+// This file is the "color schema override surface" of the Tickraft design
+// system, centrally declaring the root-level CSS variables in :root that can
+// be overridden. Override this group of variables to replace the entire color
+// scheme, without modifying any core business component or page source.
+//
+// [Override mechanism]
+// 1. Default values are identical to tokens/_color.scss (aligned with the
+//    prototype tokens.css "Signal Observatory" v2.1 palette), so loading
+//    as-is produces no visual change — this file is only an "override
+//    surface", not "new values".
+// 2. Import order (see styles/index.scss):
+//      tokens/_color.scss  →  themes/_schema.scss  →  themes/light.scss  →  themes/dark.scss
+//    _schema.scss sits after base tokens and before theme application layer,
+//    ensuring:
+//    - Base tokens are in place first (_color.scss provides raw color values)
+//    - _schema.scss provides the override surface (this file)
+//    - light/dark only do theme application layer adaptation (body background,
+//      scrollbar, etc.), no longer redefining color values
+// 3. extension's _branding.scss is imported after @tickraft/core/styles, so
+//    its brand color overrides (e.g. purple #7c3aed) naturally override the
+//    defaults in this file, conforming to the dual-repo one-way dependency
+//    rule.
+//
+// [Custom color steps]
+// 1. Create _custom-schema.scss in extension (or a custom theme package)
+// 2. Copy the variables to modify from this file's :root block to
+//    _custom-schema.scss
+// 3. Change the right-hand color values to the target brand colors
+//    (recommend updating the full primary color scale 50-900 in sync)
+// 4. Import _custom-schema.scss in the extension style entry (after
+//    @tickraft/core/styles)
+// 5. Overrides take effect immediately, no component code changes required
+//
+// [Notes]
+// - When modifying the primary color, must update the full color scale
+//   (primary-50 to primary-900) in sync, otherwise hover, active, and
+//   background states will show color scale breakage
+// - Element Plus bridge color scale (primary-color-light-3/5/7/8/9, dark-2)
+//   must match the primary color, otherwise Element Plus components (buttons,
+//   selectors, etc.) will have inconsistent colors
+// - Semantic status colors (success/warning/danger/info) should maintain
+//   WCAG AA contrast
+// - Dark mode overrides should be handled separately in [data-theme='dark']
+//   block (see dark.scss)
+// =============================================================================
+
+:root {
+  // ===========================================================================
+  // Primary color (Observatory Indigo #4263eb)
+  // Override this group of variables to replace the brand primary color.
+  // Recommend syncing the full color scale and Element Plus bridge color scale.
+  // ===========================================================================
+  --tk-primary-color: #4263eb;
+  --tk-primary-color-hover: #5b7bf0;
+  --tk-primary-color-active: #3b51c9;
+  --tk-primary-color-bg: rgb(66 99 235 / 8%);
+  --tk-primary-color-bg-hover: rgb(66 99 235 / 14%);
+  --tk-primary-color-border: rgb(66 99 235 / 28%);
+
+  // --tk-primary-color-text is defined in _color.scss as #ffffff (white text
+  // on primary-color background), matching the prototype tokens.css. Do NOT
+  // override it here. For readable primary-colored body text on regular
+  // surfaces, use --tk-text-link instead (see _color.scss).
+
+  // Full primary color scale (50-900) — update in sync when overriding primary
+  --tk-primary-50: #eef2ff;
+  --tk-primary-100: #e0e7ff;
+  --tk-primary-200: #c7d2fe;
+  --tk-primary-300: #a5b4fc;
+  --tk-primary-400: #818cf8;
+  --tk-primary-500: #4263eb;
+  --tk-primary-600: #3b51c9;
+  --tk-primary-700: #3141a3;
+  --tk-primary-800: #283380;
+  --tk-primary-900: #1f2763;
+
+  // Element Plus bridge color scale for primary color — update in sync when
+  // overriding primary color. Used by --el-color-primary-light-* mapping.
+  --tk-primary-color-light-3: #7a92f1;
+  --tk-primary-color-light-5: #a0b1f5;
+  --tk-primary-color-light-7: #c6d0f9;
+  --tk-primary-color-light-8: #d9e0fb;
+  --tk-primary-color-light-9: #eceffd;
+  --tk-primary-color-dark-2: #354fbc;
+
+  // ===========================================================================
+  // Semantic status colors (WCAG AA contrast)
+  // Override this group of variables to replace global success/warning/danger/info tones.
+  // Each semantic color has variants: main, hover, background, bg-hover, border,
+  // text, light, light-7, light-9, dark
+  // ===========================================================================
+
+  // Success color (green)
+  --tk-success-color: #16a34a;
+  --tk-success-color-hover: #15803d;
+  --tk-success-color-bg: rgb(22 163 74 / 8%);
+  --tk-success-color-bg-hover: rgb(22 163 74 / 14%);
+  --tk-success-color-border: rgb(22 163 74 / 25%);
+  --tk-success-color-text: #15803d;
+  --tk-success-color-light: #dcfce7;
+  --tk-success-color-light-7: #b9e3c9;
+  --tk-success-color-light-9: #e8f6ed;
+  --tk-success-color-dark: var(--tk-success-color-text);
+
+  // Warning color (orange)
+  --tk-warning-color: #d97706;
+  --tk-warning-color-hover: #b45309;
+  --tk-warning-color-bg: rgb(217 119 6 / 8%);
+  --tk-warning-color-bg-hover: rgb(217 119 6 / 14%);
+  --tk-warning-color-border: rgb(217 119 6 / 25%);
+  --tk-warning-color-text: #92400e;
+  --tk-warning-color-light: #fef3c7;
+  --tk-warning-color-light-7: #f4d6b4;
+  --tk-warning-color-light-9: #fbf1e6;
+  --tk-warning-color-dark: var(--tk-warning-color-text);
+
+  // Danger color (red)
+  --tk-danger-color: #dc2626;
+  --tk-danger-color-hover: #b91c1c;
+  --tk-danger-color-bg: rgb(220 38 38 / 8%);
+  --tk-danger-color-bg-hover: rgb(220 38 38 / 14%);
+  --tk-danger-color-border: rgb(220 38 38 / 25%);
+  --tk-danger-color-text: #991b1b;
+  --tk-danger-color-light: #fee2e2;
+  --tk-danger-color-light-7: #f5bebe;
+  --tk-danger-color-light-9: #fce9e9;
+  --tk-danger-color-dark: var(--tk-danger-color-text);
+
+  // Info color (sky blue)
+  --tk-info-color: #0ea5e9;
+  --tk-info-color-hover: #0284c7;
+  --tk-info-color-bg: rgb(14 165 233 / 8%);
+  --tk-info-color-border: rgb(14 165 233 / 25%);
+  --tk-info-color-text: #0369a1;
+  --tk-info-color-light: #e0f2fe;
+  --tk-info-color-light-7: #b7e4f8;
+  --tk-info-color-light-9: #e7f6fd;
+  --tk-info-color-dark: var(--tk-info-color-text);
+
+  // ===========================================================================
+  // Sidebar color
+  // Override this group of variables to replace sidebar background, hover,
+  // active, section background, and text colors
+  // ===========================================================================
+  --tk-bg-sidebar: #0a0e1a;
+  --tk-bg-sidebar-hover: rgb(255 255 255 / 6%);
+  --tk-bg-sidebar-active: rgb(66 99 235 / 20%);
+  --tk-bg-sidebar-section: rgb(255 255 255 / 3%);
+  --tk-text-on-sidebar: #cbd5e1;
+  --tk-text-on-sidebar-active: #fff;
+  --tk-text-on-sidebar-hover: #e2e8f0;
+  --tk-text-sidebar: var(--tk-text-on-sidebar);
+  --tk-text-sidebar-hover: var(--tk-text-on-sidebar-hover);
+  --tk-text-sidebar-active: var(--tk-text-on-sidebar-active);
+  --tk-sidebar-text: var(--tk-text-sidebar);
+  --tk-sidebar-text-strong: var(--tk-text-sidebar-active);
+  --tk-sidebar-hover-bg: var(--tk-bg-sidebar-hover);
+  --tk-sidebar-active-bg: var(--tk-bg-sidebar-active);
+
+  // ===========================================================================
+  // Focus ring
+  // Override this group of variables to replace keyboard focus visual feedback
+  // ===========================================================================
+  --tk-focus-ring: 0 0 0 2px var(--tk-bg-surface),
+    0 0 0 4px var(--tk-primary-color);
+  --tk-focus-ring-color: rgb(66 99 235 / 20%);
+
+  // ===========================================================================
+  // Chart colors
+  // Override this group of variables to replace ECharts data series colors and
+  // grid/text colors
+  // ===========================================================================
+  --tk-chart-series-1: #4263eb;
+  --tk-chart-series-2: #8b5cf6;
+  --tk-chart-series-3: #16a34a;
+  --tk-chart-series-4: #f59e0b;
+  --tk-chart-series-5: #dc2626;
+  --tk-chart-series-6: #06b6d4;
+  --tk-chart-grid: #f1f5f9;
+  --tk-chart-text: #94a3b8;
+
+  // ===========================================================================
+  // Brand gradient
+  // Override this group of variables to replace the gradient background of
+  // brand areas such as the login page
+  // ===========================================================================
+  --tk-gradient-brand: linear-gradient(
+    155deg,
+    #0a0e1a 0%,
+    #1e1b4b 40%,
+    #312e81 70%,
+    #1e1b4b 100%
+  );
+  --tk-gradient-brand-accent: linear-gradient(
+    135deg,
+    #4263eb 0%,
+    #8b5cf6 100%
+  );
+
+  // ===========================================================================
+  // Derived colors (linked to primary color)
+  // The following variables reference the primary color by default and
+  // auto-link when primary color is overridden. To override independently,
+  // assign values directly here.
+  // ===========================================================================
+  --tk-brand-color: var(--tk-primary-color);
+  --tk-link-color: var(--tk-text-link);
+  --tk-link-color-hover: var(--tk-text-link-hover);
+  --tk-link-color-active: var(--tk-primary-color-active);
+  --tk-highlight-color: var(--tk-danger-color);
+}

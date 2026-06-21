@@ -1,0 +1,93 @@
+# 架构设计
+
+> 本中文文档仅供参考，请以英文文档为准。
+> Chinese translation is for reference only; the English documentation is authoritative.
+
+## 概览
+
+Tickraft 以单一自包含二进制文件形式发布，内置 REST API、Vue 3 单页应用、调度引擎、执行引擎、采集引擎与告警引擎。它将状态持久化到内嵌的 SQLite 数据库中，运行时无任何外部依赖，因此单个 `tickraft start` 进程即可运行整个产品。
+
+运行时被组织为三个相互独立的子系统——**scheduler**、**executor** 与 **collector**——它们彼此从不互相导入。所有跨模块通信都通过一个强类型事件总线流转，从而保证每个子系统都可独立替换与测试。
+
+## 分层架构
+
+![分层架构](../diagrams/layered-architecture.svg)
+
+单个 HTTP 监听器（`server.addr`，默认 `:6153`）同时承载所有协议：JSON API 位于 `/api/v1/*`，Webhook 接收位于 `/webhook/*`，健康探针位于 `/healthz`，SPA 静态资源位于 `/`。开源版不存在多端口部署模式。
+
+## 三模块架构
+
+scheduler、executor 与 collector 被刻意解耦。它们不共享任何 Go 包，不调用彼此的方法，完全通过发布类型化事件来协同。
+
+### scheduler —— 纯调度引擎
+
+scheduler 仅负责决定任务 *何时* 运行：
+
+- **任务元数据** —— 任务的注册、更新、删除，以及任务定义的内存缓存。
+- **触发** —— 分层时间轮结合 cron 表达式计算下一次触发时间，并在到期时发布 `TaskTriggered` 事件。
+- **分片** —— 分片管理器决定当前节点是否拥有某个任务，因此多实例可以分担工作而不会重复执行。
+- **依赖跟踪** —— 下游任务只在上游依赖成功完成后才会触发。
+- **事件驱动触发** —— scheduler 订阅 `TaskCompleted` 以更新依赖状态，订阅 `StatusChange` 以触发事件驱动任务。
+
+scheduler 从不导入 executor 包；它对任务 *如何* 被执行一无所知。
+
+### executor —— 任务执行引擎
+
+executor 订阅 `TaskTriggered`，查找对应的 executor 实现，执行它，并发布 `TaskCompleted` 回执。
+
+- **Worker 池** —— 有界信号量限制并发执行数（默认 100）；当饱和时，工作降级为内联执行，而不会无限制地创建 goroutine。
+- **重试** —— 从任务元数据中读取重试次数与间隔，并透明地应用。
+- **状态推断** —— 每次执行的结果被映射为资源状态（`Normal` / `Abnormal`）。
+- **Executor 注册表** —— executor 通过 `Type()` 注册，并被分类为 `Actuator`（写动作：`local`、`webhook`）或 `Prober`（只读探测：`icmp`、`tcp`、`http`、`udp`、`dns`）。
+
+### collector —— 数据采集引擎
+
+collector 摄取外部上报的数据，并与 scheduler 完全解耦——它不订阅任何 scheduler 事件。
+
+- **Listener SPI** —— 被动接收器将每个接收通道（webhook、syslog、SNMP trap、MQTT 等）建模为一个 `Listener`。
+- **校验器** —— 入站报告会被检查结构正确性、资产存在性、租户归属以及大小限制。
+- **聚合器** —— 指标被分桶到固定的滚动窗口中，并归约为 avg / max / min / count / sum 统计值。
+- **持久化** —— 指标与日志被批量写入存储。
+- **内置 HTTPListener** —— 开箱即用的 HTTP 端点，支持 HMAC-SHA256 签名或 asset-key 认证。
+
+## 事件总线
+
+事件总线（`pkg/event`）是三个模块之间唯一的通信通道。它通过泛型提供强类型的发布/订阅，因此事件载荷在编译期就会被检查。
+
+| 事件               | 发布者     | 订阅者                | 用途                                       |
+|-------------------|------------|-------------------|------------------------------------------|
+| `TaskTriggered`   | scheduler  | executor          | 任务到期；executor 应执行它。              |
+| `TaskCompleted`   | executor   | scheduler         | 执行完成；更新依赖。                       |
+| `StatusChange`    | collector  | scheduler（可选） | 资源状态变化；触发事件驱动任务。           |
+
+![事件总线流程](../diagrams/event-bus.svg)
+
+collector 从不订阅 scheduler 事件，这保证了采集引擎可以独立运行。
+
+## 数据流
+
+1. **调度 → 执行** —— 时间轮触发 → 发布 `TaskTriggered` → executor runner 消费 → executor 执行（带重试）→ 推断状态 → 发布 `TaskCompleted` → scheduler 更新依赖 → 持久化执行记录。
+2. **接收 → 持久化** —— 外部报告 → listener 接收 → 校验器检查 → processor 判定状态 → 状态管理器检测变化 → 聚合器对指标分窗口 → 持久化批量写入指标与日志。
+3. **事件驱动** —— collector 发出 `StatusChange` → scheduler 订阅 → 触发关联的事件驱动任务 → 流入调度 → 执行路径。
+
+## 公共组件
+
+- **config**（`pkg/config`）—— 加载 YAML，插值环境变量（`${VAR}` / `${VAR:-default}`），并在启动前校验配置文件。
+- **pool**（`pkg/pool`）—— 统一的 goroutine 池管理器。系统中每个并发任务（executor、通知、维护循环、listener）都通过它提交；禁止裸 `go` 语句。
+- **db**（`pkg/db`）—— 位于 SQLite 之上的存储抽象。业务模块通过该层读写，而不是直接发起原始 SQL。
+- **alert / prism**（`pkg/alert`、`pkg/prism`）—— 告警引擎订阅告警事件，将其与规则匹配，并通过可插拔 channel 分发通知（开源版内置 webhook channel）。
+- **auth**（`pkg/auth`）—— JWT 签发、token 黑名单与内置管理员用户。
+
+## 持久化模型
+
+开源版将所有状态持久化到单个 SQLite 文件中。每张业务表都带有 `tenant_id` 列以实现行级隔离；尽管开源版默认是单租户的，但该列已存在，下游扩展可以在不做 schema 迁移的情况下启用多租户。数据库 schema 由 GORM `AutoMigrate` 在启动时管理——无需维护手写迁移 SQL。
+
+## 相关文档
+
+- [部署指南](./deployment.md) —— 二进制、Docker 与开发环境部署。
+- [配置说明](./configuration.md) —— 每个配置字段详解。
+- [快速入门](./getting-started.md) —— 五分钟内从零到第一个任务。
+- [用户指南](./user-guide.md) —— Web UI 各页面 walkthrough。
+- [扩展指南](./extension-guide.md) —— 如何添加 executor、listener、channel 与 API 插件。
+- [模块边界](./module-boundary.md) —— 保持三模块解耦的规则。
+- [OpenAPI 规范](../api/openapi.yaml) —— REST API 路径与模式。

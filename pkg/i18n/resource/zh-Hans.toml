@@ -1,0 +1,58 @@
+# Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Dual-licensed — see LICENSE for details.
+
+# Simplified Chinese (zh-Hans) locale resources for the open-source i18n bundle.
+# Each alert key may carry three style variants (concise/detailed/technical)
+# used by the alert formatter. Single-value keys use quoted flat keys to
+# avoid TOML table nesting.
+
+"_meta.native_name" = "简体中文"
+
+"level.critical" = "严重"
+"level.warning" = "警告"
+"level.info" = "信息"
+"level.error" = "错误"
+
+"field.timestamp" = "时间"
+"field.resource" = "资产"
+"field.metric_name" = "指标"
+"field.metric_value" = "值"
+"field.threshold" = "阈值"
+"field.operator" = "运算符"
+"field.level" = "级别"
+"field.keyword" = "关键词"
+"field.content" = "内容"
+"field.source_ip" = "来源 IP"
+
+"time.format" = "2006-01-02 15:04:05"
+
+[alert.metric.title]
+concise = "告警：{{.metric_name}}"
+detailed = "告警：资产 {{.asset_name}} 的 {{.metric_name}} 超过阈值"
+technical = "ALERT[metric] {{.metric_name}} value={{.current_value}} threshold={{.threshold}} asset_id={{.asset_id}}"
+
+[alert.metric.description]
+concise = "{{.current_value}} 超过 {{.threshold}}"
+detailed = "指标 {{.metric_name}} 当前值 {{.current_value}}，超过配置阈值 {{.threshold}}。资产：{{.asset_name}}（ID：{{.asset_id}}）。相关资源：{{.metrics}}。"
+technical = "metric={{.metric_name}} value={{.current_value}} threshold={{.threshold}} asset_id={{.asset_id}} tenant_id={{.tenant_id}} related={{.metrics}}"
+
+[alert.log.title]
+concise = "告警：日志关键词 {{.keyword}} 命中"
+detailed = "告警：资产 {{.asset_name}} 命中日志关键词 \"{{.keyword}}\""
+technical = "ALERT[log] keyword={{.keyword}} level={{.severity}} asset_id={{.asset_id}} source_ip={{.source_ip}}"
+
+[alert.log.description]
+concise = "关键词：{{.keyword}}，级别：{{.severity}}"
+detailed = "日志条目命中关键词 \"{{.keyword}}\"，级别 {{.severity}}。内容：{{.content}}。来源 IP：{{.source_ip}}。资产：{{.asset_name}}（ID：{{.asset_id}}）。"
+technical = "keyword={{.keyword}} level={{.severity}} content={{.content}} source_ip={{.source_ip}} asset_id={{.asset_id}} tenant_id={{.tenant_id}}"
+
+[alert.generic.title]
+concise = "告警：{{.alert_type}}"
+detailed = "告警：资产 {{.asset_name}} 发生 {{.alert_type}}"
+technical = "ALERT[{{.alert_type}}] asset_id={{.asset_id}}"
+
+[alert.generic.description]
+concise = "资产：{{.asset_name}}"
+detailed = "资产 {{.asset_name}}（ID：{{.asset_id}}）触发类型为 {{.alert_type}} 的告警。"
+technical = "type={{.alert_type}} asset_id={{.asset_id}} tenant_id={{.tenant_id}}"

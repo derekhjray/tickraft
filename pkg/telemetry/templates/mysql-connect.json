@@ -1,0 +1,12 @@
+{
+    "name": "MySQL Connect",
+    "description": "MySQL connection probe checking TCP port reachability and server handshake",
+    "category": "database",
+    "executor_type": "mysql",
+    "config": {
+        "port": 3306,
+        "banner_check": true,
+        "timeout": 5,
+        "interval": 60
+    }
+}

@@ -1,0 +1,256 @@
+// Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Dual-licensed — see LICENSE for details.
+
+// Common utility classes
+@use './tokens/index';
+
+// Global reset
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: var(--tk-font-family);
+  font-size: var(--tk-font-size-base);
+  color: var(--tk-text-primary);
+  background-color: var(--tk-bg-color-page);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  height: 100%;
+}
+
+// Scrollbar styles
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--tk-border-color);
+  border-radius: var(--tk-border-radius-base);
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+// Text truncation
+.tk-text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Flex layouts
+.tk-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tk-flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tk-flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+// Page container
+.tk-page-container {
+  height: 100%;
+  padding: var(--tk-spacing-md);
+}
+
+// ===== Skip link (WCAG 2.4.1 Level A) =====
+// Visually hidden by default, visible on keyboard focus.
+.tk-skip-link {
+  position: absolute;
+  top: 0;
+  left: -9999px;
+  z-index: 9999;
+  padding: var(--tk-spacing-sm) var(--tk-spacing-md);
+  font-size: var(--tk-font-size-sm);
+  font-weight: var(--tk-font-weight-semibold);
+  color: var(--tk-text-on-primary);
+  text-decoration: none;
+  background-color: var(--tk-primary-color);
+  border-radius: 0 0 var(--tk-border-radius-md) 0;
+
+  &:focus,
+  &:focus-visible {
+    position: fixed;
+    top: 0;
+    left: 0;
+    outline: 2px solid var(--tk-primary-color);
+    outline-offset: 2px;
+  }
+}
+
+.tk-page-header {
+  margin-bottom: var(--tk-spacing-md);
+}
+
+.tk-page-title {
+  font-size: var(--tk-font-size-xl);
+  font-weight: var(--tk-font-weight-semibold);
+  color: var(--tk-text-primary);
+}
+
+// Card container
+.tk-card {
+  padding: var(--tk-spacing-md);
+  background-color: var(--tk-bg-color);
+  border-radius: var(--tk-border-radius-md);
+  box-shadow: var(--tk-shadow-sm);
+}
+
+// ===== Common list page styles =====
+
+// Search area
+.tk-search-area {
+  padding: var(--tk-spacing-md);
+  margin-bottom: var(--tk-spacing-md);
+  background-color: var(--tk-bg-color);
+  border-radius: var(--tk-border-radius-md);
+  box-shadow: var(--tk-shadow-sm);
+
+  // Allow inline form items to wrap on narrow viewports instead of
+  // overflowing horizontally.
+  :deep(.el-form--inline .el-form-item) {
+    margin-right: 0;
+  }
+}
+
+// Toolbar
+.tk-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--tk-spacing-sm);
+  margin-bottom: var(--tk-spacing-md);
+
+  &__left,
+  &__right {
+    display: flex;
+    gap: var(--tk-spacing-sm);
+    align-items: center;
+    flex-wrap: wrap;
+  }
+}
+
+// Narrow viewports: stack toolbar sections and search form items vertically.
+@media (max-width: 767px) {
+  .tk-toolbar {
+    justify-content: flex-start;
+
+    &__right {
+      margin-left: 0;
+    }
+  }
+
+  .tk-search-area :deep(.el-form-item) {
+    width: 100%;
+    margin-bottom: var(--tk-spacing-sm);
+  }
+}
+
+// Table area
+.tk-table-area {
+  padding: var(--tk-spacing-md);
+  background-color: var(--tk-bg-color);
+  border-radius: var(--tk-border-radius-md);
+  box-shadow: var(--tk-shadow-sm);
+
+  :deep(.el-table) {
+    --el-table-header-bg-color: var(--tk-gray-3);
+    --el-table-row-hover-bg-color: var(--tk-primary-color-light-9);
+    --el-table-border-color: var(--tk-border-color-lighter);
+  }
+
+  :deep(.el-table th) {
+    font-weight: var(--tk-font-weight-semibold);
+    color: var(--tk-text-regular);
+  }
+
+  :deep(.el-table td) {
+    color: var(--tk-text-regular);
+  }
+}
+
+// Pagination area
+.tk-pagination-area {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--tk-spacing-md);
+  margin-top: var(--tk-spacing-md);
+  border-top: 1px solid var(--tk-border-color-lighter);
+}
+
+// Statistic card
+.tk-stat-card {
+  display: flex;
+  gap: var(--tk-spacing-md);
+  align-items: center;
+  padding: var(--tk-spacing-lg);
+  background-color: var(--tk-bg-color);
+  border-radius: var(--tk-border-radius-md);
+  box-shadow: var(--tk-shadow-sm);
+
+  &__icon {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+    color: #fff;
+    border-radius: var(--tk-border-radius-md);
+  }
+
+  &__content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__title {
+    margin-bottom: 4px;
+    font-size: var(--tk-font-size-sm);
+    color: var(--tk-text-secondary);
+  }
+
+  &__value {
+    font-size: var(--tk-font-size-2xl);
+    font-weight: var(--tk-font-weight-semibold);
+    line-height: 1;
+    color: var(--tk-text-primary);
+  }
+
+  &__trend {
+    margin-top: 4px;
+    font-size: var(--tk-font-size-xs);
+
+    &--up {
+      color: var(--tk-success-color-text);
+    }
+
+    &--down {
+      color: var(--tk-danger-color-text);
+    }
+  }
+}

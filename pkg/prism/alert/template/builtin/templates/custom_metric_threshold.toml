@@ -1,0 +1,27 @@
+# Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Dual-licensed — see LICENSE for details.
+
+id = "custom_metric_threshold"
+name = "Custom Metric Threshold"
+description = "Generic template for any custom metric threshold violation"
+alert_type = "metric"
+variables = ["metric_name", "current_value", "threshold", "asset_name", "operator"]
+styles = ["concise", "detailed", "technical"]
+channel_hints = ["email", "sms", "im"]
+
+[translations.en-US]
+"title.concise" = "Alert: {{.metric_name}}"
+"title.detailed" = "Metric alert: {{.metric_name}} at {{.current_value}}"
+"title.technical" = "ALERT[metric] {{.metric_name}}={{.current_value}}"
+"description.concise" = "{{.metric_name}} = {{.current_value}}"
+"description.detailed" = "Asset {{.asset_name}} metric {{.metric_name}} is {{.current_value}}, exceeding threshold {{.threshold}} ({{.operator}})."
+"description.technical" = "metric={{.metric_name}} value={{.current_value}} threshold={{.threshold}} op={{.operator}}"
+
+[translations.zh-Hans]
+"title.concise" = "告警：{{.metric_name}}"
+"title.detailed" = "指标告警：{{.metric_name}} 达到 {{.current_value}}"
+"title.technical" = "ALERT[metric] {{.metric_name}}={{.current_value}}"
+"description.concise" = "{{.metric_name}} = {{.current_value}}"
+"description.detailed" = "资产 {{.asset_name}} 指标 {{.metric_name}} 为 {{.current_value}}，超过阈值 {{.threshold}}（{{.operator}}）。"
+"description.technical" = "metric={{.metric_name}} value={{.current_value}} threshold={{.threshold}} op={{.operator}}"

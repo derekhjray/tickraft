@@ -1,0 +1,32 @@
+// Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Dual-licensed — see LICENSE for details.
+
+// Shadow design tokens
+// Aligned with the prototype tokens.css shadow system
+// (Tickraft Design System v2.1 "Signal Observatory").
+// Shadows reserved for floating elements; regular layers stay border-first.
+:root {
+  --tk-shadow-none: none;
+
+  // Prototype shadow scale (slate-tinted, reserved for floating elements)
+  --tk-shadow-xs: 0 1px 2px rgb(15 23 42 / 4%);
+  --tk-shadow-sm: 0 1px 3px rgb(15 23 42 / 6%), 0 1px 2px rgb(15 23 42 / 4%);
+  --tk-shadow-md: 0 4px 6px -1px rgb(15 23 42 / 8%),
+    0 2px 4px -1px rgb(15 23 42 / 4%);
+  --tk-shadow-lg: 0 10px 15px -3px rgb(15 23 42 / 8%),
+    0 4px 6px -2px rgb(15 23 42 / 4%);
+  --tk-shadow-xl: 0 20px 25px -5px rgb(15 23 42 / 10%),
+    0 10px 10px -5px rgb(15 23 42 / 4%);
+  --tk-shadow-2xl: 0 25px 50px -12px rgb(15 23 42 / 18%);
+  --tk-shadow-inner: inset 0 2px 4px rgb(15 23 42 / 4%);
+  --tk-shadow-focus: 0 0 0 3px rgb(66 99 235 / 20%);
+  --tk-shadow-danger-focus: 0 0 0 3px rgb(220 38 38 / 18%);
+
+  // App-specific floating aliases (Element Plus bridge + components).
+  // Aliased to the prototype scale so dark-mode overrides of lg/xl propagate
+  // automatically via CSS variable resolution.
+  --tk-shadow-base: var(--tk-shadow-sm);
+  --tk-shadow-float: var(--tk-shadow-lg);
+  --tk-shadow-float-lg: var(--tk-shadow-xl);
+}

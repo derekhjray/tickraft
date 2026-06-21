@@ -1,0 +1,111 @@
+// Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Dual-licensed — see LICENSE for details.
+
+package remediation
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/tickraft/tickraft/pkg/executor"
+	"github.com/tickraft/tickraft/pkg/executor/local"
+	"github.com/tickraft/tickraft/pkg/types"
+	"go.uber.org/zap"
+)
+
+// defaultOperatorTimeout is the default execution timeout for a remediation
+// operator when the request does not carry one.
+const defaultOperatorTimeout = 120 * time.Second
+
+// LocalOperator runs remediation scripts on the host machine via the
+// pkg/executor/local executor. It is the only operator shipped with the
+// default deployment. callers may register additional operators
+// (ssh, mysql, redis, ...) against the same Operator SPI.
+type LocalOperator struct {
+	exec   *local.Executor
+	logger *zap.Logger
+}
+
+// OperatorOption configures a LocalOperator.
+type OperatorOption interface {
+	apply(*LocalOperator)
+}
+
+type operatorOption func(*LocalOperator)
+
+func (f operatorOption) apply(o *LocalOperator) { f(o) }
+
+// WithOperatorLogger sets the structured logger.
+func WithOperatorLogger(logger *zap.Logger) OperatorOption {
+	return operatorOption(func(o *LocalOperator) {
+		if logger != nil {
+			o.logger = logger
+		}
+	})
+}
+
+// NewLocalOperator creates a LocalOperator wrapping the given local executor.
+// When exec is nil a default local executor is constructed.
+func NewLocalOperator(exec *local.Executor, opts ...OperatorOption) *LocalOperator {
+	o := &LocalOperator{logger: zap.NewNop()}
+	if exec == nil {
+		exec = local.New(local.WithLogger(o.logger))
+	}
+	o.exec = exec
+	for _, opt := range opts {
+		opt.apply(o)
+	}
+	return o
+}
+
+// Name returns the operator identifier, matching Rule.ExecutorType "local".
+func (o *LocalOperator) Name() string { return "local" }
+
+// Execute runs the configured local command. A non-nil error indicates an
+// infrastructure failure; a nil error with Success=false indicates the
+// command ran but failed (non-zero exit or timeout). The circuit breaker
+// counts the latter as a failure.
+func (o *LocalOperator) Execute(ctx context.Context, req ExecutionRequest) (*ExecutionResult, error) {
+	timeout := req.Timeout
+	if timeout <= 0 {
+		timeout = defaultOperatorTimeout
+	}
+	// Enforce the per-request timeout so a hung script cannot block the
+	// remediation worker indefinitely. The local executor also applies its
+	// own configured timeout; the shorter of the two wins.
+	runCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	er := executor.ExecutionRequest{
+		TenantID:     req.TenantID,
+		AssetID:      req.AssetID,
+		ExecutorName: localExecutorName,
+		Config:       req.Config,
+		Operation:    executor.OpExecute,
+		RunID:        req.RunID,
+		TriggerType:  "remediation",
+		Timeout:      timeout,
+	}
+	res, err := o.exec.Execute(runCtx, er)
+	if err != nil {
+		return nil, fmt.Errorf("remediation: local execute: %w", err)
+	}
+
+	out := &ExecutionResult{
+		Output:   res.Body,
+		ErrorMsg: res.ErrorMsg,
+		Duration: res.Duration,
+	}
+	// A timeout or non-normal status is a remediation failure (counted by
+	// the circuit breaker) rather than an infrastructure error.
+	out.Success = res.Status == types.AssetStatusNormal
+	return out, nil
+}
+
+// localExecutorName is the executor name registered by pkg/executor/local.
+const localExecutorName = "local"
+
+// Compile-time interface assertion.
+var _ Operator = (*LocalOperator)(nil)

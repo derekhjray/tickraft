@@ -1,0 +1,14 @@
+{
+    "name": "HTTP Homepage",
+    "description": "HTTP homepage availability probe checking root path response",
+    "category": "web",
+    "executor_type": "http",
+    "config": {
+        "method": "GET",
+        "url_path": "/",
+        "expected_status": 200,
+        "tls_verify": true,
+        "timeout": 10,
+        "interval": 30
+    }
+}

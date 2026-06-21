@@ -1,0 +1,27 @@
+# Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Dual-licensed — see LICENSE for details.
+
+id = "network_unreachable"
+name = "Network Unreachable"
+description = "Fires when a network probe fails to reach the target host"
+alert_type = "generic"
+variables = ["asset_name", "alert_type"]
+styles = ["concise", "detailed", "technical"]
+channel_hints = ["email", "sms", "im"]
+
+[translations.en-US]
+"title.concise" = "Alert: network unreachable"
+"title.detailed" = "Network unreachable: {{.asset_name}}"
+"title.technical" = "ALERT[generic] target={{.asset_name}} status=unreachable"
+"description.concise" = "{{.asset_name}} unreachable"
+"description.detailed" = "Network probe to {{.asset_name}} failed. The target host is unreachable from the probe agent."
+"description.technical" = "target={{.asset_name}} status=unreachable probe=icmp"
+
+[translations.zh-Hans]
+"title.concise" = "告警：网络不可达"
+"title.detailed" = "网络不可达：{{.asset_name}}"
+"title.technical" = "ALERT[generic] target={{.asset_name}} status=unreachable"
+"description.concise" = "{{.asset_name}} 不可达"
+"description.detailed" = "到 {{.asset_name}} 的网络探测失败，目标主机从探测 agent 不可达。"
+"description.technical" = "target={{.asset_name}} status=unreachable probe=icmp"

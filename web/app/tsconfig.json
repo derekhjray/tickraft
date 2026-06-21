@@ -1,0 +1,16 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@tickraft/core": ["../../packages/core/src"],
+      "@tickraft/core/*": ["../../packages/core/src/*"],
+      "@tickraft/features": ["../../packages/features/src"],
+      "@tickraft/features/*": ["../../packages/features/src/*"]
+    },
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}

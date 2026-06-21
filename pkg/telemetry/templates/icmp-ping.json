@@ -1,0 +1,11 @@
+{
+    "name": "ICMP Ping",
+    "description": "Basic ICMP ping probe for host availability",
+    "category": "network",
+    "executor_type": "icmp",
+    "config": {
+        "timeout": 5,
+        "count": 3,
+        "interval": 60
+    }
+}

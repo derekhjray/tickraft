@@ -1,0 +1,15 @@
+{
+    "name": "HTTPS API",
+    "description": "HTTPS API health check endpoint probe validating response body",
+    "category": "web",
+    "executor_type": "http",
+    "config": {
+        "method": "GET",
+        "url_path": "/api/v1/health",
+        "expected_status": 200,
+        "expected_body": "ok",
+        "tls_verify": true,
+        "timeout": 10,
+        "interval": 30
+    }
+}

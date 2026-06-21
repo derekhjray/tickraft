@@ -1,0 +1,12 @@
+{
+    "name": "TCP Database Port",
+    "description": "TCP port reachability check for database services (default 3306)",
+    "category": "database",
+    "executor_type": "tcp",
+    "config": {
+        "port": 3306,
+        "banner_check": false,
+        "timeout": 5,
+        "interval": 300
+    }
+}

@@ -1,0 +1,58 @@
+# Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Dual-licensed — see LICENSE for details.
+
+# English (en-US) locale resources for the open-source i18n bundle.
+# Each alert key may carry three style variants (concise/detailed/technical)
+# used by the alert formatter. Single-value keys use quoted flat keys to
+# avoid TOML table nesting.
+
+"_meta.native_name" = "English"
+
+"level.critical" = "Critical"
+"level.warning" = "Warning"
+"level.info" = "Info"
+"level.error" = "Error"
+
+"field.timestamp" = "Timestamp"
+"field.resource" = "Asset"
+"field.metric_name" = "Metric"
+"field.metric_value" = "Value"
+"field.threshold" = "Threshold"
+"field.operator" = "Operator"
+"field.level" = "Level"
+"field.keyword" = "Keyword"
+"field.content" = "Content"
+"field.source_ip" = "Source IP"
+
+"time.format" = "Jan 2, 2006 3:04 PM"
+
+[alert.metric.title]
+concise = "Alert: {{.metric_name}}"
+detailed = "Alert: {{.metric_name}} exceeded threshold on asset {{.asset_name}}"
+technical = "ALERT[metric] {{.metric_name}} value={{.current_value}} threshold={{.threshold}} asset_id={{.asset_id}}"
+
+[alert.metric.description]
+concise = "{{.current_value}} exceeds {{.threshold}}"
+detailed = "Metric {{.metric_name}} reached {{.current_value}}, exceeding the configured threshold {{.threshold}}. Asset: {{.asset_name}} (ID: {{.asset_id}}). Related resources: {{.metrics}}."
+technical = "metric={{.metric_name}} value={{.current_value}} threshold={{.threshold}} asset_id={{.asset_id}} tenant_id={{.tenant_id}} related={{.metrics}}"
+
+[alert.log.title]
+concise = "Alert: log keyword {{.keyword}} matched"
+detailed = "Alert: log keyword \"{{.keyword}}\" matched on asset {{.asset_name}}"
+technical = "ALERT[log] keyword={{.keyword}} level={{.severity}} asset_id={{.asset_id}} source_ip={{.source_ip}}"
+
+[alert.log.description]
+concise = "Keyword: {{.keyword}}, Level: {{.severity}}"
+detailed = "Log entry matched keyword \"{{.keyword}}\" with level {{.severity}}. Content: {{.content}}. Source IP: {{.source_ip}}. Asset: {{.asset_name}} (ID: {{.asset_id}})."
+technical = "keyword={{.keyword}} level={{.severity}} content={{.content}} source_ip={{.source_ip}} asset_id={{.asset_id}} tenant_id={{.tenant_id}}"
+
+[alert.generic.title]
+concise = "Alert: {{.alert_type}}"
+detailed = "Alert: {{.alert_type}} on asset {{.asset_name}}"
+technical = "ALERT[{{.alert_type}}] asset_id={{.asset_id}}"
+
+[alert.generic.description]
+concise = "Asset: {{.asset_name}}"
+detailed = "An alert of type {{.alert_type}} was triggered on asset {{.asset_name}} (ID: {{.asset_id}})."
+technical = "type={{.alert_type}} asset_id={{.asset_id}} tenant_id={{.tenant_id}}"

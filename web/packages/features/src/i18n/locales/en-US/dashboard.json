@@ -1,0 +1,13 @@
+{
+  "upgrade": {
+    "title": "Upgrade to Professional Edition",
+    "description": "Unlock SSH/MySQL/Redis executors, DNS/SSL certificate probes, multi-user collaboration, audit logs, multi-channel notifications and more advanced capabilities for a more powerful operations automation experience.",
+    "featureSshExecutor": "SSH/MySQL/Redis Executors",
+    "featureDbExecutor": "Database & Cache Execution",
+    "featureAdvancedProber": "DNS/SSL Certificate Probes",
+    "featureMultiUser": "Multi-user & RBAC",
+    "featureAuditLog": "Audit Logs",
+    "featureMultiChannel": "Email/SMS/DingTalk/Feishu Channels",
+    "cta": "Explore Professional Edition"
+  }
+}

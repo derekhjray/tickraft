@@ -1,0 +1,17 @@
+# Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Dual-licensed — see LICENSE for details.
+
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions (Q&A)
+    url: https://github.com/tickraft/tickraft/discussions
+    about: Ask questions and discuss ideas with the community. Please do not use issues for support questions.
+  - name: Contributing guide
+    url: https://github.com/tickraft/tickraft/blob/main/CONTRIBUTING.md
+    about: Read the contributing guide before opening a pull request.
+  - name: Security policy
+    url: https://github.com/tickraft/tickraft/blob/main/SECURITY.md
+    about: |
+      Report security vulnerabilities privately following SECURITY.md.
+      Do NOT use public issues for security reports.

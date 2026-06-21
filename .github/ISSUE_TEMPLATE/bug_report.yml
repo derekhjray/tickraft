@@ -1,0 +1,107 @@
+# Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Dual-licensed — see LICENSE for details.
+
+name: Bug report
+description: Report a reproducible defect in Tickraft
+title: "[bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report for Tickraft.
+
+        Before opening a new issue, please:
+        - Search existing issues to avoid duplicates.
+        - Make sure you are running a supported release.
+        - Do **not** report security vulnerabilities here. See [SECURITY.md](../SECURITY.md) for responsible disclosure.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Bug summary
+      description: A short, clear description of what is broken.
+      placeholder: "Tickraft scheduler fails to retry a failed HTTP executor task."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Minimal, numbered steps to reproduce the behavior.
+      placeholder: |
+        1. Start Tickraft in Docker mode
+        2. Create a scheduled task with an HTTP executor pointing to http://example.com
+        3. Force a failure by returning HTTP 500
+        4. Observe the task list
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen.
+      placeholder: "The task should be retried up to the configured retry count with exponential backoff."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened.
+      placeholder: "The task is marked as failed immediately on the first attempt with no retry."
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Details about the environment where the bug occurred. Please fill in all fields.
+      placeholder: |
+        - OS: (e.g. Ubuntu 22.04 / macOS 14 / Windows 11)
+        - Tickraft version: (e.g. v0.8.2, or commit hash)
+        - Go version: (e.g. go1.22.5) — only relevant when building from source
+        - Deployment mode: binary / source / Docker
+      value: |
+        - OS:
+        - Tickraft version:
+        - Go version:
+        - Deployment mode:
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant log output. Paste as a code block, do not attach screenshots of logs. Redact any secrets.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: possible-cause
+    attributes:
+      label: Possible cause / fix (optional)
+      description: If you have investigated the issue, share any pointers or a proposed fix.
+      placeholder: "Looks like the retry policy is not applied when the executor returns a non-2xx status code."
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of conduct
+      description: By submitting this issue, you agree to follow the project's code of conduct.
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

@@ -1,0 +1,27 @@
+# Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Dual-licensed — see LICENSE for details.
+
+id = "certificate_expiring"
+name = "Certificate Expiring"
+description = "Fires when a TLS certificate is approaching its expiration date"
+alert_type = "generic"
+variables = ["asset_name", "alert_type"]
+styles = ["concise", "detailed", "technical"]
+channel_hints = ["email", "sms", "im"]
+
+[translations.en-US]
+"title.concise" = "Alert: certificate expiring"
+"title.detailed" = "Certificate for {{.asset_name}} is expiring"
+"title.technical" = "ALERT[generic] cert={{.asset_name}} status=expiring"
+"description.concise" = "{{.asset_name}} certificate expiring"
+"description.detailed" = "The TLS certificate for {{.asset_name}} is expiring soon. Please renew it before it becomes invalid."
+"description.technical" = "cert={{.asset_name}} status=expiring action=renew"
+
+[translations.zh-Hans]
+"title.concise" = "告警：证书即将过期"
+"title.detailed" = "{{.asset_name}} 的证书即将过期"
+"title.technical" = "ALERT[generic] cert={{.asset_name}} status=expiring"
+"description.concise" = "{{.asset_name}} 证书即将过期"
+"description.detailed" = "{{.asset_name}} 的 TLS 证书即将过期，请在证书失效前及时续期。"
+"description.technical" = "cert={{.asset_name}} status=expiring action=renew"

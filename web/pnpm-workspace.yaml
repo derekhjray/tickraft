@@ -1,0 +1,13 @@
+# Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Dual-licensed — see LICENSE for details.
+
+packages:
+  - 'packages/*'
+  - 'app'
+allowBuilds:
+  '@parcel/watcher': true
+  core-js: false
+  esbuild: true
+  vue-demi: true
+onlyBuiltDependencies: '@parcel/watcher,esbuild,vue-demi'
