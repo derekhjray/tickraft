@@ -1,0 +1,67 @@
+# Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Dual-licensed — see LICENSE for details.
+
+name: Duplication Check
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  duplication-check:
+    name: Code Duplication Detection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install jscpd
+        run: npm install -g jscpd
+      - name: Run duplication detection
+        run: |
+          echo "Checking code duplication between internal/ and pkg/ directories..."
+          jscpd \
+            --languages go \
+            --min-tokens 50 \
+            --min-lines 5 \
+            --format "markdown" \
+            --output ./jscpd-report \
+            --reporter json \
+            internal/ pkg/
+      - name: Check duplication threshold
+        run: |
+          DUPLICATION=$(cat ./jscpd-report/jscpd-report.json | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          total = data.get('statistics', {}).get('total', {})
+          percentage = total.get('percentage', '0%')
+          if isinstance(percentage, str):
+              percentage = percentage.replace('%', '')
+          print(percentage)
+          ")
+          echo "Duplication between internal/ and pkg/: ${DUPLICATION}%"
+          THRESHOLD=5
+          if [ "$(echo "$DUPLICATION > $THRESHOLD" | bc -l)" -eq 1 ]; then
+            echo "FAIL: Duplication ${DUPLICATION}% exceeds threshold ${THRESHOLD}%"
+            echo ""
+            echo "Duplication details:"
+            cat ./jscpd-report/jscpd-report.json | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for d in data.get('duplicates', []):
+              first = d.get('firstFile', {})
+              second = d.get('secondFile', {})
+              print(f\"  {first.get('name')}:{first.get('start')}-{first.get('end')} <-> {second.get('name')}:{second.get('start')}-{second.get('end')} ({d.get('lines')} lines, {d.get('tokens')} tokens)\")
+          "
+            exit 1
+          fi
+          echo "PASS: Duplication ${DUPLICATION}% is within threshold ${THRESHOLD}%"
+
+      - name: Upload duplication report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jscpd-report
+          path: ./jscpd-report/

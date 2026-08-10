@@ -1,0 +1,30 @@
+// Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Dual-licensed — see LICENSE for details.
+
+// z-index design tokens
+// Aligned with the prototype tokens.css z-index hierarchy
+// (Tickraft Design System v2.1 "Signal Observatory").
+:root {
+  // Prototype z-index scale
+  --tk-z-base: 0;
+  --tk-z-dropdown: 1000;
+  --tk-z-sticky: 1100;
+  --tk-z-fixed: 1200;
+  --tk-z-sidebar: 1300;
+  --tk-z-header: 1400;
+  --tk-z-modal-overlay: 1500;
+  --tk-z-modal: 1600;
+  --tk-z-popover: 1700;
+  --tk-z-tooltip: 1800;
+  --tk-z-toast: 1900;
+  --tk-z-command: 2000;
+
+  // App-specific aliases (components reference --tk-z-index-*)
+  --tk-z-index-sidebar: var(--tk-z-sidebar);
+  --tk-z-index-header: var(--tk-z-header);
+  --tk-z-index-dropdown: var(--tk-z-dropdown);
+  --tk-z-index-dialog: var(--tk-z-modal);
+  --tk-z-index-toast: var(--tk-z-toast);
+  --tk-z-index-tooltip: var(--tk-z-tooltip);
+}

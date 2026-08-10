@@ -1,0 +1,62 @@
+# Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Dual-licensed — see LICENSE for details.
+
+name: Feature request
+description: Suggest a new feature or enhancement for Tickraft
+title: "[feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature for Tickraft.
+
+        Before opening a new request, please:
+        - Search existing issues and Discussions to avoid duplicates.
+        - Keep the scope focused on a single problem.
+        - Note that commercial-only capabilities (paid executors, license checks, SSO, etc.) belong in the professional edition, not the open-source repo.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem does this solve? Who is affected?
+      placeholder: "As an ops engineer, I want to be notified when a probe exceeds its latency budget for N consecutive runs, so I can react before an outage."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the change or addition you would like to see. Include any API/CLI/config surface it would expose.
+      placeholder: "Add a `latency_budget` field to the prober config and emit a warning event when exceeded for N consecutive runs."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you consider, and why did they fall short?
+      placeholder: "Considered using an external alerting tool, but that requires shipping metrics out of Tickraft."
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Screenshots, links to related issues, RFCs, or anything else that helps explain the request.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of conduct
+      description: By submitting this issue, you agree to follow the project's code of conduct.
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

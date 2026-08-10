@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 460" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title>Tickraft Layered Architecture</title>
+  <desc>Five-layer architecture: web frontend, access gateway, business modules, common components, and kernel base.</desc>
+
+  <!-- Background -->
+  <rect width="900" height="460" fill="#FFFFFF"/>
+
+  <!-- Title -->
+  <text x="450" y="34" text-anchor="middle" font-size="20" font-weight="700" fill="#0F172A">Tickraft — Layered Architecture</text>
+
+  <!-- ===== Layer 1: Web Frontend ===== -->
+  <g>
+    <rect x="50" y="60" width="800" height="70" rx="10" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1"/>
+    <rect x="50" y="60" width="8" height="70" rx="4" fill="#2563EB"/>
+    <text x="78" y="88" font-size="15" font-weight="700" fill="#1E3A8A">Web Frontend</text>
+    <text x="78" y="110" font-size="13" fill="#475569">Vue 3 SPA — tasks / telemetry / alerts / system</text>
+    <text x="820" y="88" text-anchor="end" font-size="11" font-weight="600" fill="#2563EB">USER INTERFACE</text>
+  </g>
+
+  <!-- ===== Layer 2: Access Gateway ===== -->
+  <g>
+    <rect x="50" y="140" width="800" height="70" rx="10" fill="#ECFEFF" stroke="#A5F3FC" stroke-width="1"/>
+    <rect x="50" y="140" width="8" height="70" rx="4" fill="#0891B2"/>
+    <text x="78" y="168" font-size="15" font-weight="700" fill="#155E75">Access Gateway</text>
+    <text x="78" y="190" font-size="13" fill="#475569">REST API + WebSocket + Webhook ingestion — single port (:6153)</text>
+    <text x="820" y="168" text-anchor="end" font-size="11" font-weight="600" fill="#0891B2">PROTOCOL LAYER</text>
+  </g>
+
+  <!-- ===== Layer 3: Business Modules ===== -->
+  <g>
+    <rect x="50" y="220" width="800" height="70" rx="10" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="1"/>
+    <rect x="50" y="220" width="8" height="70" rx="4" fill="#059669"/>
+    <text x="78" y="248" font-size="15" font-weight="700" fill="#064E3B">Business Modules</text>
+    <text x="78" y="270" font-size="13" fill="#475569">scheduler · executor · collector · prism</text>
+    <text x="820" y="248" text-anchor="end" font-size="11" font-weight="600" fill="#059669">CORE LOGIC</text>
+  </g>
+
+  <!-- ===== Layer 4: Common Components ===== -->
+  <g>
+    <rect x="50" y="300" width="800" height="70" rx="10" fill="#F5F3FF" stroke="#DDD6FE" stroke-width="1"/>
+    <rect x="50" y="300" width="8" height="70" rx="4" fill="#7C3AED"/>
+    <text x="78" y="328" font-size="15" font-weight="700" fill="#4C1D95">Common Components</text>
+    <text x="78" y="350" font-size="13" fill="#475569">event bus · storage · config · pool · auth</text>
+    <text x="820" y="328" text-anchor="end" font-size="11" font-weight="600" fill="#7C3AED">SHARED SERVICES</text>
+  </g>
+
+  <!-- ===== Layer 5: Kernel Base ===== -->
+  <g>
+    <rect x="50" y="380" width="800" height="70" rx="10" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1"/>
+    <rect x="50" y="380" width="8" height="70" rx="4" fill="#475569"/>
+    <text x="78" y="408" font-size="15" font-weight="700" fill="#1E293B">Kernel Base</text>
+    <text x="78" y="430" font-size="13" fill="#475569">SQLite persistence · timers · rate limiting</text>
+    <text x="820" y="408" text-anchor="end" font-size="11" font-weight="600" fill="#475569">FOUNDATION</text>
+  </g>
+
+  <!-- Down arrow indicating request flow -->
+  <line x1="450" y1="50" x2="450" y2="55" stroke="#94A3B8" stroke-width="1.5"/>
+</svg>

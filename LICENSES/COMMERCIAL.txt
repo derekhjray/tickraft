@@ -1,0 +1,93 @@
+Tickraft Commercial License Summary
+=========================================
+
+Version: V1.0 | Updated: 2026-08-04 | Status: active
+
+Copyright Notice
+Copyright © 2026 Beijing Ruishuo Technology Co., Ltd. (北京睿朔科技有限公司). All rights reserved.
+
+Licensor
+The licensor and copyright holder of the Licensed Software is Beijing Ruishuo
+Technology Co., Ltd. (北京睿朔科技有限公司) (hereinafter "the Licensor"). "Tickraft"
+is used in this document solely as the name of the open-source project and
+repository, and does not refer to the Licensor.
+
+Definitions
+- Licensed Software: means all source code and related documentation contained
+  in the Tickraft open-source repository (tickraft).
+- Licensee: means any natural person, legal entity, or other organization that
+  has signed a commercial license agreement with the Licensor and been granted
+  the license set out herein.
+- Derivative Works: means any work created based on the Licensed Software or
+  any modified version thereof, including but not limited to combined works
+  formed by merging with closed-source commercial edition code, modified
+  versions, and further-developed versions.
+
+Grant Scope
+Subject to the terms of the applicable commercial license agreement, the
+Licensee is granted the following rights:
+- The right to use, copy, modify, merge, distribute, and privately deploy the
+  Licensed Software.
+- The right to merge the Licensed Software with closed-source commercial
+  edition code to form Derivative Works.
+- The right to provide services over a network (SaaS) without open-sourcing
+  the Derivative Works.
+- The right to distribute closed-source binary Derivative Works.
+
+AGPLv3 Obligation Exemption
+Provided that the Licensee complies with the commercial license agreement, the
+Licensee is exempted from all obligations under the GNU AGPLv3, including but
+not limited to:
+- Exemption from the AGPLv3 Section 13 network copyleft obligation, i.e. no
+  obligation to disclose source code when providing services over a network;
+- Exemption from the obligation to open-source Derivative Works;
+- Exemption from the obligation to provide the Corresponding Source Code.
+
+Scope Limitations
+- The Licensee shall not re-license, sublicense, or transfer this license.
+- The Licensee shall not remove or alter any copyright notices or license
+  notices in the Licensed Software.
+- This license applies only to the Licensee's use of the Licensed Software
+  during the license term.
+
+License Fee and Term
+- The license fee shall be determined in accordance with the separate
+  commercial license agreement entered into between the Licensor and the
+  Licensee.
+- The license term shall be as stipulated in the commercial license agreement,
+  and the license shall automatically terminate upon expiry of that term.
+
+Confidentiality Obligation
+The Licensee shall keep confidential the terms of the commercial license
+agreement, the license fee, and other commercially sensitive information, and
+shall not disclose them to any third party without the prior written consent of
+the Licensor.
+
+Intellectual Property Reservation
+All intellectual property rights in the Licensed Software (including
+copyright, trademark rights, patent rights, and other intellectual property
+rights) are reserved by the Licensor. This license grants only the right of use
+and the rights expressly granted herein; any rights not expressly granted are
+reserved by the Licensor.
+
+Disclaimer
+The Licensed Software is provided "AS IS", and the Licensor assumes no express
+or implied warranties, including but not limited to warranties of
+merchantability, fitness for a particular purpose, and non-infringement.
+
+Limitation of Liability
+In no event and under no legal theory, whether in contract, tort, or otherwise,
+shall the Licensor be liable to the Licensee for any direct, indirect,
+incidental, special, or consequential damages, even if the Licensor has been
+advised of the possibility of such damages.
+
+Termination
+- Upon the Licensee's breach of any provision of this license or the
+  commercial license agreement, the Licensor may terminate the license at any
+  time.
+- Upon termination of the license, the Licensee shall immediately cease all use
+  of the Licensed Software and destroy all copies of the Licensed Software and
+  Derivative Works in its possession.
+
+Contact
+For commercial licensing inquiries, please contact: licensing@tickraft.com

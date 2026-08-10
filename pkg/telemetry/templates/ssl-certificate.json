@@ -1,0 +1,15 @@
+{
+    "name": "SSL Certificate",
+    "description": "SSL/TLS certificate validity probe checking expiration and chain trust",
+    "category": "security",
+    "executor_type": "http",
+    "config": {
+        "method": "GET",
+        "url_path": "/",
+        "expected_status": 200,
+        "tls_verify": true,
+        "warn_days_before_expiry": 30,
+        "timeout": 30,
+        "interval": 3600
+    }
+}

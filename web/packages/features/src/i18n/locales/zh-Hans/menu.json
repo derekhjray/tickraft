@@ -1,0 +1,33 @@
+{
+  "dashboard": "仪表盘",
+  "asset": {
+    "title": "资产管理"
+  },
+  "task": {
+    "title": "任务调度",
+    "task": "任务管理",
+    "log": "执行日志",
+    "template": "任务模板",
+    "node": "调度节点"
+  },
+  "telemetry": {
+    "title": "监测中心"
+  },
+  "prism": {
+    "title": "监控告警",
+    "record": "告警记录",
+    "rule": "告警规则"
+  },
+  "system": {
+    "title": "系统设置",
+    "basic": "基础设置",
+    "data": "数据维护",
+    "profile": "个人资料",
+    "license": "授权信息",
+    "subscription": "订阅与账单",
+    "subscription_service": "订阅与服务",
+    "quota": "配额管理",
+    "about": "关于系统",
+    "info": "系统信息"
+  }
+}

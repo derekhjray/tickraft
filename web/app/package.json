@@ -1,0 +1,51 @@
+{
+  "name": "tickraft-web-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "@tickraft/core": "workspace:*",
+    "@tickraft/features": "workspace:*",
+    "axios": "^1.7.0",
+    "echarts": "^5.5.0",
+    "element-plus": "^2.9.0",
+    "humps": "^2.0.1",
+    "pinia": "^2.1.0",
+    "pinia-plugin-persistedstate": "^4.7.0",
+    "vee-validate": "^4.12.0",
+    "vue": "^3.4.0",
+    "vue-echarts": "^7.0.0",
+    "vue-i18n": "^11.0.0",
+    "vue-router": "^4.3.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@iconify-json/ep": "^1.1.0",
+    "@intlify/unplugin-vue-i18n": "^11.0.0",
+    "@types/humps": "^2.0.4",
+    "@types/mockjs": "^1.0.10",
+    "@types/node": "^26.0.0",
+    "@vitejs/plugin-legacy": "^5.4.0",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "core-js": "^3.49.0",
+    "mockjs": "^1.1.0",
+    "sass": "^1.77.0",
+    "unocss": "^66.7.5",
+    "unplugin-icons": "^22.0.0",
+    "unplugin-vue-components": "^0.27.0",
+    "vite": "^5.4.0",
+    "vue-tsc": "^2.1.0"
+  },
+  "browserslist": [
+    "defaults and not dead",
+    "> 0.5%",
+    "Firefox ESR",
+    "last 2 versions"
+  ]
+}

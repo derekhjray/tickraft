@@ -1,0 +1,12 @@
+{
+    "name": "DNS Resolution",
+    "description": "DNS resolution probe checking domain name lookup against a DNS server",
+    "category": "network",
+    "executor_type": "dns",
+    "config": {
+        "port": 53,
+        "domain": "example.com",
+        "timeout": 5,
+        "interval": 60
+    }
+}

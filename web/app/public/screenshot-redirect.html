@@ -1,0 +1,22 @@
+<!--
+  Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+  Dual-licensed — see LICENSE for details.
+-->
+
+<!DOCTYPE html>
+<html>
+<head><title>Redirect</title></head>
+<body>
+<script>
+  // Set auth token and locale in localStorage for the tickraft app (same origin)
+  localStorage.setItem('tk-token', JSON.stringify('mock-jwt-token-' + Date.now()));
+  localStorage.setItem('tk-locale', JSON.stringify('en-US'));
+  // Redirect to the target page (passed via URL hash)
+  var target = window.location.hash.substring(1);
+  if (target) {
+    window.location.href = target;
+  }
+</script>
+</body>
+</html>

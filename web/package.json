@@ -1,0 +1,43 @@
+{
+  "name": "tickraft-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter tickraft-web-app dev",
+    "build": "pnpm --filter tickraft-web-app build",
+    "preview": "pnpm --filter tickraft-web-app preview",
+    "lint": "eslint \"packages/**/*.{vue,js,jsx,ts,tsx}\" \"app/src/**/*.{vue,js,jsx,ts,tsx}\"",
+    "format": "prettier --write packages/ app/",
+    "stylelint": "stylelint \"packages/**/*.{css,scss,vue}\" \"app/**/*.{css,scss,vue}\" --fix",
+    "type-check": "vue-tsc --noEmit -p app/tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@iconify-json/ep": "^1.1.0",
+    "@intlify/unplugin-vue-i18n": "^11.0.0",
+    "@types/mockjs": "^1.0.10",
+    "@types/node": "^26.0.0",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-vue": "^9.26.0",
+    "jsdom": "^25.0.0",
+    "mockjs": "^1.1.0",
+    "prettier": "^3.3.0",
+    "sass": "^1.77.0",
+    "stylelint": "^16.0.0",
+    "stylelint-config-recess-order": "^7.7.0",
+    "stylelint-config-standard-scss": "^13.0.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0",
+    "unocss": "^66.7.5",
+    "unplugin-icons": "^22.0.0",
+    "unplugin-vue-components": "^0.27.0",
+    "vite": "^5.4.0",
+    "vitest": "^2.1.0",
+    "vue-tsc": "^2.1.0",
+    "@vue/test-utils": "^2.4.0"
+  }
+}

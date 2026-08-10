@@ -1,0 +1,304 @@
+// Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Dual-licensed — see LICENSE for details.
+
+// Color design tokens
+// Aligned with the prototype tokens.css :root color system
+// (Tickraft Design System v2.1 "Signal Observatory")
+// Observatory Indigo primary #4263eb, phosphor-amber accent,
+// 6-level surface elevation, opacity-based borders, WCAG AA contrast.
+:root {
+  // ===== Brand =====
+  --tk-brand: 'tickraft';
+
+  // ===== Primary color (Observatory Indigo, full color scale 50-900) =====
+  --tk-primary-color: #4263eb;
+  --tk-primary-color-hover: #5b7bf0;
+  --tk-primary-color-active: #3b51c9;
+  --tk-primary-color-bg: rgb(66 99 235 / 8%);
+  --tk-primary-color-bg-hover: rgb(66 99 235 / 14%);
+  --tk-primary-color-border: rgb(66 99 235 / 28%);
+
+  // Text color on primary-color background (white), matching the prototype
+  // tokens.css. For readable primary-colored body text on regular surfaces,
+  // use --tk-text-link instead.
+  --tk-primary-color-text: #fff;
+  --tk-primary-50: #eef2ff;
+  --tk-primary-100: #e0e7ff;
+  --tk-primary-200: #c7d2fe;
+  --tk-primary-300: #a5b4fc;
+  --tk-primary-400: #818cf8;
+  --tk-primary-500: #4263eb;
+  --tk-primary-600: #3b51c9;
+  --tk-primary-700: #3141a3;
+  --tk-primary-800: #283380;
+  --tk-primary-900: #1f2763;
+
+  // ===== Primary color Element Plus bridge color scale (app-specific) =====
+  // Derived from #4263eb, mapped to --el-color-primary-light-*.
+  --tk-primary-color-light-3: #7a92f1;
+  --tk-primary-color-light-5: #a0b1f5;
+  --tk-primary-color-light-7: #c6d0f9;
+  --tk-primary-color-light-8: #d9e0fb;
+  --tk-primary-color-light-9: #eceffd;
+  --tk-primary-color-dark-2: #354fbc;
+
+  // ===== Accent color (Phosphor Amber, instrument-panel highlight) =====
+  --tk-accent-color: #f59e0b;
+  --tk-accent-color-hover: #d97706;
+  --tk-accent-color-active: #b45309;
+  --tk-accent-color-bg: rgb(245 158 11 / 10%);
+  --tk-accent-color-bg-hover: rgb(245 158 11 / 18%);
+  --tk-accent-color-border: rgb(245 158 11 / 32%);
+  --tk-accent-color-text: #92400e;
+  --tk-accent-50: #fffbeb;
+  --tk-accent-100: #fef3c7;
+  --tk-accent-200: #fde68a;
+  --tk-accent-300: #fcd34d;
+  --tk-accent-400: #fbbf24;
+  --tk-accent-500: #f59e0b;
+  --tk-accent-600: #d97706;
+  --tk-accent-700: #b45309;
+  --tk-accent-800: #92400e;
+  --tk-accent-900: #78350f;
+
+  // ===== Semantic status colors (WCAG AA) =====
+  --tk-success-color: #16a34a;
+  --tk-success-color-hover: #15803d;
+  --tk-success-color-bg: rgb(22 163 74 / 8%);
+  --tk-success-color-bg-hover: rgb(22 163 74 / 14%);
+  --tk-success-color-border: rgb(22 163 74 / 25%);
+  --tk-success-color-text: #15803d;
+  --tk-success-color-light: #dcfce7;
+  --tk-success-color-light-7: #b9e3c9;
+  --tk-success-color-light-9: #e8f6ed;
+  --tk-success-color-dark: var(--tk-success-color-text);
+  --tk-warning-color: #d97706;
+  --tk-warning-color-hover: #b45309;
+  --tk-warning-color-bg: rgb(217 119 6 / 8%);
+  --tk-warning-color-bg-hover: rgb(217 119 6 / 14%);
+  --tk-warning-color-border: rgb(217 119 6 / 25%);
+  --tk-warning-color-text: #92400e;
+  --tk-warning-color-light: #fef3c7;
+  --tk-warning-color-light-7: #f4d6b4;
+  --tk-warning-color-light-9: #fbf1e6;
+  --tk-warning-color-dark: var(--tk-warning-color-text);
+  --tk-danger-color: #dc2626;
+  --tk-danger-color-hover: #b91c1c;
+  --tk-danger-color-bg: rgb(220 38 38 / 8%);
+  --tk-danger-color-bg-hover: rgb(220 38 38 / 14%);
+  --tk-danger-color-border: rgb(220 38 38 / 25%);
+  --tk-danger-color-text: #991b1b;
+  --tk-danger-color-light: #fee2e2;
+  --tk-danger-color-light-7: #f5bebe;
+  --tk-danger-color-light-9: #fce9e9;
+  --tk-danger-color-dark: var(--tk-danger-color-text);
+
+  // Error color (alias family of danger, used for form validation)
+  --tk-error-color: #dc2626;
+  --tk-error-color-hover: #b91c1c;
+  --tk-error-color-bg: rgb(220 38 38 / 8%);
+  --tk-error-color-border: rgb(220 38 38 / 25%);
+  --tk-error-color-text: #991b1b;
+  --tk-info-color: #0ea5e9;
+  --tk-info-color-hover: #0284c7;
+  --tk-info-color-bg: rgb(14 165 233 / 8%);
+  --tk-info-color-border: rgb(14 165 233 / 25%);
+  --tk-info-color-text: #0369a1;
+  --tk-info-color-light: #e0f2fe;
+  --tk-info-color-light-7: #b7e4f8;
+  --tk-info-color-light-9: #e7f6fd;
+  --tk-info-color-dark: var(--tk-info-color-text);
+
+  // ===== Neutral =====
+  --tk-neutral-color: #64748b;
+
+  // ===== Neutral color scale (app-specific, aligned with Tailwind Slate) =====
+  --tk-neutral-0: #fff;
+  --tk-neutral-50: #f8fafc;
+  --tk-neutral-100: #f1f5f9;
+  --tk-neutral-200: #e2e8f0;
+  --tk-neutral-300: #cbd5e1;
+  --tk-neutral-400: #94a3b8;
+  --tk-neutral-500: #64748b;
+  --tk-neutral-600: #475569;
+  --tk-neutral-700: #334155;
+  --tk-neutral-800: #1e293b;
+  --tk-neutral-900: #0f172a;
+  --tk-neutral-950: #020617;
+
+  // Backward-compatible gray-* naming (app-specific aliases)
+  --tk-gray-1: var(--tk-neutral-0);
+  --tk-gray-2: var(--tk-neutral-50);
+  --tk-gray-3: var(--tk-neutral-100);
+  --tk-gray-4: var(--tk-neutral-200);
+  --tk-gray-5: var(--tk-neutral-300);
+  --tk-gray-6: var(--tk-neutral-400);
+  --tk-gray-7: var(--tk-neutral-500);
+  --tk-gray-8: var(--tk-neutral-600);
+  --tk-gray-9: var(--tk-neutral-700);
+  --tk-gray-10: var(--tk-neutral-900);
+
+  // ===== Extended status (monitoring palette) =====
+  --tk-status-online: #16a34a;
+  --tk-status-offline: #6b7280;
+  --tk-status-warning: #d97706;
+  --tk-status-critical: #dc2626;
+  --tk-status-unknown: #94a3b8;
+  --tk-status-maintenance: #8b5cf6;
+  --tk-status-firing: #dc2626;
+  --tk-status-resolved: #16a34a;
+  --tk-status-pending: #d97706;
+  --tk-status-running: #4263eb;
+  --tk-status-success: #16a34a;
+  --tk-status-failed: #dc2626;
+  --tk-status-skipped: #94a3b8;
+  --tk-status-timeout: #d97706;
+
+  // ===== Data visualization palette (IBM Carbon) =====
+  --tk-viz-1: #6929c4;
+  --tk-viz-2: #1192e8;
+  --tk-viz-3: #005d5d;
+  --tk-viz-4: #9f1853;
+  --tk-viz-5: #fa4d56;
+  --tk-viz-6: #520408;
+  --tk-viz-7: #198038;
+  --tk-viz-8: #002d9c;
+  --tk-viz-9: #ee538b;
+  --tk-viz-10: #8a3800;
+  --tk-viz-11: #a2fdc7;
+
+  // ===== Edition colors =====
+  --tk-edition-community: #64748b;
+  --tk-edition-personal: #0ea5e9;
+  --tk-edition-team: #8b5cf6;
+  --tk-edition-enterprise: #f59e0b;
+  --tk-edition-saas: #14b8a6;
+
+  // ===== Surfaces (Light Theme) =====
+  --tk-bg-canvas: #f6f7fb;
+  --tk-bg-page: #eef0f5;
+  --tk-bg-surface: #fff;
+  --tk-bg-surface-hover: #f7f8fc;
+  --tk-bg-surface-active: #eff1f6;
+  --tk-bg-overlay: #fff;
+  --tk-bg-sidebar: #0a0e1a;
+  --tk-bg-sidebar-hover: rgb(255 255 255 / 6%);
+  --tk-bg-sidebar-active: rgb(66 99 235 / 20%);
+  --tk-bg-topbar: #fff;
+  --tk-bg-input: #fff;
+  --tk-bg-fill: #f3f5f9;
+  --tk-bg-fill-light: #f7f8fc;
+  --tk-bg-fill-blank: #fff;
+  --tk-bg-mask: rgb(10 14 26 / 55%);
+  --tk-bg-tooltip: #1a2236;
+
+  // App-specific surface extensions
+  --tk-bg-surface-elevated: #fff;
+  --tk-bg-surface-overlay: var(--tk-bg-mask);
+  --tk-bg-sidebar-section: rgb(255 255 255 / 3%);
+  --tk-bg-hover: rgb(0 0 0 / 4%);
+  --tk-bg-active: rgb(0 0 0 / 6%);
+  --tk-bg-selected: rgb(66 99 235 / 8%);
+  --tk-bg-stripe: rgb(0 0 0 / 2%);
+  --tk-bg-color: var(--tk-bg-surface);
+  --tk-bg-color-overlay: var(--tk-bg-surface-elevated);
+  --tk-bg-color-page: var(--tk-bg-page);
+  --tk-bg-color-sidebar: var(--tk-bg-sidebar);
+
+  // ===== Text colors =====
+  --tk-text-primary: #0f172a;
+  --tk-text-regular: #334155;
+  --tk-text-secondary: #64748b;
+  --tk-text-placeholder: #94a3b8;
+  --tk-text-disabled: #cbd5e1;
+  --tk-text-on-primary: #fff;
+  --tk-text-on-sidebar: #cbd5e1;
+  --tk-text-on-sidebar-active: #fff;
+  --tk-text-on-sidebar-hover: #e2e8f0;
+  --tk-text-link: #4263eb;
+  --tk-text-link-hover: #3b51c9;
+  --tk-text-tooltip: #f1f5f9;
+
+  // App-specific text extensions
+  --tk-text-tertiary: #64748b;
+  --tk-text-inverse: #f8fafc;
+  --tk-text-on-accent: #fff;
+  --tk-text-sidebar: var(--tk-text-on-sidebar);
+  --tk-text-sidebar-hover: var(--tk-text-on-sidebar-hover);
+  --tk-text-sidebar-active: var(--tk-text-on-sidebar-active);
+  --tk-sidebar-text: var(--tk-text-sidebar);
+  --tk-sidebar-text-strong: var(--tk-text-sidebar-active);
+  --tk-sidebar-hover-bg: var(--tk-bg-sidebar-hover);
+  --tk-sidebar-border: var(--tk-border-color-base);
+
+  // ===== Focus ring (app-specific) =====
+  --tk-focus-ring: 0 0 0 2px var(--tk-bg-surface),
+    0 0 0 4px var(--tk-primary-color);
+  --tk-focus-ring-color: rgb(66 99 235 / 20%);
+
+  // ===== Chart colors (app-specific, ECharts series) =====
+  --tk-chart-series-1: #4263eb;
+  --tk-chart-series-2: #8b5cf6;
+  --tk-chart-series-3: #16a34a;
+  --tk-chart-series-4: #f59e0b;
+  --tk-chart-series-5: #dc2626;
+  --tk-chart-series-6: #06b6d4;
+  --tk-chart-grid: #f1f5f9;
+  --tk-chart-text: #94a3b8;
+
+  // ===== Glass effect (app-specific) =====
+  --tk-glass-bg: rgb(255 255 255 / 72%);
+  --tk-glass-border: rgb(226 232 240 / 60%);
+  --tk-glass-blur: blur(12px);
+
+  // ===== Gradients =====
+  --tk-gradient-primary: linear-gradient(135deg, #4263eb 0%, #3b51c9 60%, #2c4ad8 100%);
+  --tk-gradient-sidebar: linear-gradient(180deg, #0a0e1a 0%, #0f1424 100%);
+  --tk-gradient-hero: linear-gradient(135deg, rgb(66 99 235 / 10%) 0%, rgb(245 158 11 / 4%) 50%, rgb(139 92 246 / 6%) 100%);
+  --tk-gradient-success: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  --tk-gradient-danger: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  --tk-gradient-accent: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+
+  // App-specific brand gradients (login page)
+  --tk-gradient-brand: linear-gradient(
+    155deg,
+    #0a0e1a 0%,
+    #1e1b4b 40%,
+    #312e81 70%,
+    #1e1b4b 100%
+  );
+  --tk-gradient-brand-accent: linear-gradient(
+    135deg,
+    #4263eb 0%,
+    #8b5cf6 100%
+  );
+
+  // ===== Glow effects (colored, for floating accents) =====
+  --tk-glow-primary: 0 0 24px rgb(66 99 235 / 35%);
+  --tk-glow-accent: 0 0 20px rgb(245 158 11 / 35%);
+  --tk-glow-success: 0 0 20px rgb(22 163 74 / 30%);
+  --tk-glow-danger: 0 0 20px rgb(220 38 38 / 30%);
+
+  // ===== Noise texture (subtle) =====
+  --tk-noise-texture: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+
+  // ===== Derived colors (app-specific backward-compatible aliases) =====
+  --tk-brand-color: var(--tk-primary-color);
+  --tk-sidebar-active-bg: var(--tk-bg-sidebar-active);
+  --tk-link-color: var(--tk-text-link);
+  --tk-link-color-hover: var(--tk-text-link-hover);
+  --tk-link-color-active: var(--tk-primary-color-active);
+  --tk-placeholder-color: var(--tk-text-placeholder);
+  --tk-secondary-color: var(--tk-neutral-500);
+  --tk-highlight-color: var(--tk-danger-color);
+  --tk-fill-color-light: var(--tk-neutral-100);
+  --tk-fill-hover: var(--tk-bg-hover);
+  --tk-fill-active: var(--tk-bg-active);
+  --tk-fill-disabled: var(--tk-neutral-50);
+  --tk-border-disabled: var(--tk-neutral-300);
+  --tk-fill-error: var(--tk-danger-color-bg);
+  --tk-border-error: var(--tk-danger-color);
+  --tk-text-on-functional: #1a1a1a;
+  --tk-scrollbar-thumb: rgb(255 255 255 / 15%);
+}

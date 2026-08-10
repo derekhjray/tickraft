@@ -1,0 +1,27 @@
+{
+  "name": "@tickraft/features",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./routes": "./src/routes/index.ts",
+    "./i18n": "./src/i18n/index.ts",
+    "./api/*": "./src/api/*.ts",
+    "./views/*": "./src/views/*.vue"
+  },
+  "dependencies": {
+    "@tickraft/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "vue": "^3.4.0",
+    "vue-router": "^4.3.0",
+    "vue-i18n": "^11.0.0",
+    "element-plus": "^2.9.0",
+    "@element-plus/icons-vue": "^2.3.2",
+    "axios": "^1.7.0"
+  }
+}

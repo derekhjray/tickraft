@@ -1,0 +1,333 @@
+// Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Dual-licensed — see LICENSE for details.
+
+// Dark theme
+// Aligned with the prototype tokens.css [data-theme="dark"] block +
+// theme-dark.css application layer (Tickraft Design System v2.1
+// "Signal Observatory" — Observatory Dark, indigo-tinted).
+// Recolors every surface, text, border, and shadow token so the whole system
+// flips coherently. Uses only the [data-theme='dark'] selector (not :root) to
+// avoid overriding the light-mode defaults.
+[data-theme='dark'] {
+  // ===== Surfaces (Observatory Dark — indigo-tinted) =====
+  --tk-bg-canvas: #080b14;
+  --tk-bg-page: #080b14;
+  --tk-bg-surface: #141a26;
+  --tk-bg-surface-hover: #1a2030;
+  --tk-bg-surface-active: #202838;
+  --tk-bg-overlay: #141a26;
+  --tk-bg-sidebar: #080b14;
+  --tk-bg-sidebar-hover: rgb(255 255 255 / 5%);
+  --tk-bg-sidebar-active: rgb(91 123 240 / 22%);
+  --tk-bg-topbar: #0c1018;
+  --tk-bg-input: #0c1018;
+  --tk-bg-fill: #1a2030;
+  --tk-bg-fill-light: #141a26;
+  --tk-bg-fill-blank: #0c1018;
+  --tk-bg-mask: rgb(2 4 12 / 78%);
+  --tk-bg-tooltip: #1a2236;
+
+  // App-specific surface extensions
+  --tk-bg-surface-elevated: #1a2030;
+  --tk-bg-surface-overlay: #202838;
+  --tk-bg-sidebar-section: rgb(255 255 255 / 2%);
+  --tk-bg-hover: rgb(255 255 255 / 5%);
+  --tk-bg-active: rgb(255 255 255 / 7%);
+  --tk-bg-selected: rgb(91 123 240 / 16%);
+  --tk-bg-stripe: rgb(255 255 255 / 2%);
+  --tk-bg-color: var(--tk-bg-surface);
+  --tk-bg-color-overlay: var(--tk-bg-surface-elevated);
+  --tk-bg-color-page: var(--tk-bg-page);
+  --tk-bg-color-sidebar: var(--tk-bg-sidebar);
+
+  // ===== Text =====
+  --tk-text-primary: #e6edf3;
+  --tk-text-regular: #c9d1d9;
+  --tk-text-secondary: #8b949e;
+  --tk-text-placeholder: #6e7681;
+  --tk-text-disabled: #484f58;
+  --tk-text-on-primary: #fff;
+  --tk-text-on-sidebar: #8b949e;
+  --tk-text-on-sidebar-active: #fff;
+  --tk-text-on-sidebar-hover: #e6edf3;
+  --tk-text-link: #5b7bf0;
+  --tk-text-link-hover: #7c95f5;
+  --tk-text-tooltip: #f1f5f9;
+
+  // App-specific text extensions
+  --tk-text-tertiary: #8b949e;
+  --tk-text-inverse: #0f172a;
+  --tk-text-on-accent: #fff;
+  --tk-text-sidebar: var(--tk-text-on-sidebar);
+  --tk-text-sidebar-hover: var(--tk-text-on-sidebar-hover);
+  --tk-text-sidebar-active: var(--tk-text-on-sidebar-active);
+  --tk-sidebar-text: var(--tk-text-sidebar);
+  --tk-sidebar-text-strong: var(--tk-text-sidebar-active);
+  --tk-sidebar-hover-bg: var(--tk-bg-sidebar-hover);
+
+  // ===== Borders (opacity-based, lighter edges) =====
+  --tk-border-color-base: rgb(240 246 252 / 10%);
+  --tk-border-color-light: rgb(240 246 252 / 7%);
+  --tk-border-color-lighter: rgb(240 246 252 / 5%);
+  --tk-border-color-extra-light: rgb(240 246 252 / 3%);
+  --tk-border-color-dark: rgb(240 246 252 / 16%);
+  --tk-border-primary: 1px solid rgb(91 123 240 / 45%);
+  --tk-border-sidebar: 1px solid rgb(255 255 255 / 6%);
+
+  // ===== Primary (brighter variant for dark AA) =====
+  --tk-primary-color: #5b7bf0;
+  --tk-primary-color-hover: #7c95f5;
+  --tk-primary-color-active: #4263eb;
+  --tk-primary-color-bg: rgb(91 123 240 / 16%);
+  --tk-primary-color-bg-hover: rgb(91 123 240 / 26%);
+  --tk-primary-color-border: rgb(91 123 240 / 42%);
+  --tk-primary-color-text: #fff;
+
+  // Element Plus bridge color scale (darkened in dark mode, referencing the
+  // primary dark scale)
+  --tk-primary-color-light-3: #3b51c9;
+  --tk-primary-color-light-5: #3141a3;
+  --tk-primary-color-light-7: #283380;
+  --tk-primary-color-light-8: #1f2763;
+  --tk-primary-color-light-9: #181f4f;
+  --tk-primary-color-dark-2: #5b7bf0;
+
+  // ===== Accent (warmer amber for dark, instrument pop) =====
+  --tk-accent-color: #fbbf24;
+  --tk-accent-color-hover: #fcd34d;
+  --tk-accent-color-active: #f59e0b;
+  --tk-accent-color-bg: rgb(251 191 36 / 14%);
+  --tk-accent-color-bg-hover: rgb(251 191 36 / 22%);
+  --tk-accent-color-border: rgb(251 191 36 / 38%);
+  --tk-accent-color-text: #fbbf24;
+
+  // ===== Semantic status (desaturated for dark bg, AA on #141a26) =====
+  --tk-success-color: #3fb950;
+  --tk-success-color-hover: #46c75a;
+  --tk-success-color-bg: rgb(63 185 80 / 14%);
+  --tk-success-color-bg-hover: rgb(63 185 80 / 22%);
+  --tk-success-color-border: rgb(63 185 80 / 34%);
+  --tk-success-color-text: #3fb950;
+  --tk-success-color-light: rgb(63 185 80 / 18%);
+  --tk-success-color-light-7: rgb(63 185 80 / 26%);
+  --tk-success-color-light-9: rgb(63 185 80 / 18%);
+  --tk-success-color-dark: var(--tk-success-color-text);
+  --tk-warning-color: #d29922;
+  --tk-warning-color-hover: #e3b341;
+  --tk-warning-color-bg: rgb(210 153 34 / 14%);
+  --tk-warning-color-bg-hover: rgb(210 153 34 / 22%);
+  --tk-warning-color-border: rgb(210 153 34 / 34%);
+  --tk-warning-color-text: #e3b341;
+  --tk-warning-color-light: rgb(210 153 34 / 18%);
+  --tk-warning-color-light-7: rgb(210 153 34 / 26%);
+  --tk-warning-color-light-9: rgb(210 153 34 / 18%);
+  --tk-warning-color-dark: var(--tk-warning-color-text);
+  --tk-danger-color: #f85149;
+  --tk-danger-color-hover: #ff6b63;
+  --tk-danger-color-bg: rgb(248 81 73 / 14%);
+  --tk-danger-color-bg-hover: rgb(248 81 73 / 22%);
+  --tk-danger-color-border: rgb(248 81 73 / 34%);
+  --tk-danger-color-text: #f85149;
+  --tk-danger-color-light: rgb(248 81 73 / 18%);
+  --tk-danger-color-light-7: rgb(248 81 73 / 26%);
+  --tk-danger-color-light-9: rgb(248 81 73 / 18%);
+  --tk-danger-color-dark: var(--tk-danger-color-text);
+  --tk-error-color: #f85149;
+  --tk-error-color-hover: #ff6b63;
+  --tk-error-color-bg: rgb(248 81 73 / 14%);
+  --tk-error-color-border: rgb(248 81 73 / 34%);
+  --tk-error-color-text: #f85149;
+  --tk-info-color: #58a6ff;
+  --tk-info-color-hover: #79b8ff;
+  --tk-info-color-bg: rgb(88 166 255 / 14%);
+  --tk-info-color-border: rgb(88 166 255 / 34%);
+  --tk-info-color-text: #58a6ff;
+  --tk-info-color-light: rgb(88 166 255 / 18%);
+  --tk-info-color-light-7: rgb(88 166 255 / 26%);
+  --tk-info-color-light-9: rgb(88 166 255 / 18%);
+  --tk-info-color-dark: var(--tk-info-color-text);
+
+  // ===== Extended status (monitoring palette) =====
+  --tk-status-online: #3fb950;
+  --tk-status-offline: #6e7681;
+  --tk-status-warning: #d29922;
+  --tk-status-critical: #f85149;
+  --tk-status-unknown: #8b949e;
+  --tk-status-maintenance: #a371f7;
+  --tk-status-firing: #f85149;
+  --tk-status-resolved: #3fb950;
+  --tk-status-pending: #d29922;
+  --tk-status-running: #5b7bf0;
+  --tk-status-success: #3fb950;
+  --tk-status-failed: #f85149;
+  --tk-status-skipped: #8b949e;
+  --tk-status-timeout: #d29922;
+
+  // ===== Shadows (deeper, true floating depth) =====
+  --tk-shadow-xs: 0 1px 2px rgb(0 0 0 / 40%);
+  --tk-shadow-sm: 0 1px 3px rgb(0 0 0 / 45%), 0 1px 2px rgb(0 0 0 / 30%);
+  --tk-shadow-md: 0 4px 8px rgb(0 0 0 / 50%), 0 2px 4px rgb(0 0 0 / 30%);
+  --tk-shadow-lg: 0 10px 18px rgb(0 0 0 / 55%), 0 4px 8px rgb(0 0 0 / 30%);
+  --tk-shadow-xl: 0 20px 30px rgb(0 0 0 / 60%),
+    0 10px 14px rgb(0 0 0 / 35%);
+  --tk-shadow-2xl: 0 30px 60px rgb(0 0 0 / 70%);
+  --tk-shadow-inner: inset 0 2px 4px rgb(0 0 0 / 30%);
+  --tk-shadow-focus: 0 0 0 3px rgb(91 123 240 / 40%);
+  --tk-shadow-danger-focus: 0 0 0 3px rgb(248 81 73 / 35%);
+
+  // ===== Gradients (dark-tuned, atmospheric) =====
+  --tk-gradient-sidebar: linear-gradient(180deg, #080b14 0%, #0c1018 100%);
+  --tk-gradient-hero: linear-gradient(135deg, rgb(91 123 240 / 18%) 0%, rgb(251 191 36 / 5%) 50%, rgb(163 113 247 / 10%) 100%);
+  --tk-gradient-primary: linear-gradient(135deg, #5b7bf0 0%, #4263eb 60%, #3b51c9 100%);
+  --tk-gradient-accent: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+
+  // ===== Glow (brighter for dark contrast) =====
+  --tk-glow-primary: 0 0 28px rgb(91 123 240 / 50%);
+  --tk-glow-accent: 0 0 22px rgb(251 191 36 / 45%);
+  --tk-glow-success: 0 0 24px rgb(63 185 80 / 40%);
+  --tk-glow-danger: 0 0 24px rgb(248 81 73 / 40%);
+
+  // ===== App-specific dark extensions =====
+
+  // Charts
+  --tk-chart-grid: rgb(255 255 255 / 6%);
+  --tk-chart-text: #8b949e;
+
+  // Glass
+  --tk-glass-bg: rgb(20 26 38 / 85%);
+  --tk-glass-border: rgb(255 255 255 / 8%);
+
+  // Brand gradient (login page)
+  --tk-gradient-brand: linear-gradient(
+    155deg,
+    #080b14 0%,
+    #0f1225 35%,
+    #1a1d40 65%,
+    #0f1225 100%
+  );
+
+  // Focus ring
+  --tk-focus-ring: 0 0 0 2px var(--tk-bg-surface),
+    0 0 0 4px var(--tk-primary-color);
+  --tk-focus-ring-color: rgb(91 123 240 / 40%);
+
+  // Derived colors
+  --tk-link-color: var(--tk-text-link);
+  --tk-link-color-hover: var(--tk-text-link-hover);
+  --tk-link-color-active: var(--tk-primary-color-active);
+  --tk-placeholder-color: var(--tk-text-placeholder);
+  --tk-sidebar-active-bg: var(--tk-bg-sidebar-active);
+  --tk-fill-color-light: var(--tk-bg-surface-elevated);
+  --tk-fill-hover: var(--tk-bg-hover);
+  --tk-fill-active: var(--tk-bg-active);
+  --tk-fill-disabled: var(--tk-bg-surface-elevated);
+  --tk-border-disabled: var(--tk-border-color-lighter);
+  --tk-fill-error: var(--tk-danger-color-bg);
+  --tk-border-error: var(--tk-danger-color);
+  --tk-highlight-color: var(--tk-danger-color);
+  --tk-scrollbar-thumb: rgb(255 255 255 / 15%);
+}
+
+// ===== Body paint =====
+[data-theme='dark'] body {
+  color: var(--tk-text-primary);
+  background-color: var(--tk-bg-canvas);
+  text-rendering: optimizelegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// ===== Scrollbar (dark, thin) =====
+[data-theme='dark'] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background-color: rgb(240 246 252 / 12%);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: var(--tk-radius-round);
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(240 246 252 / 22%);
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+[data-theme='dark'] * {
+  scrollbar-color: rgb(240 246 252 / 16%) transparent;
+  scrollbar-width: thin;
+}
+
+// ===== Selection color =====
+[data-theme='dark'] ::selection {
+  color: #fff;
+  background: rgb(79 110 248 / 32%);
+}
+
+[data-theme='dark'] ::selection {
+  color: #fff;
+  background: rgb(79 110 248 / 32%);
+}
+
+// ===== Dark-specific component adjustments =====
+
+// Sidebar: deeper than light, gradient for depth
+[data-theme='dark'] .tk-sidebar {
+  background: var(--tk-gradient-sidebar);
+}
+
+// Topbar glass: dark translucent wash
+[data-theme='dark'] .tk-topbar {
+  background: rgb(13 17 23 / 82%);
+  backdrop-filter: saturate(180%) blur(12px);
+  backdrop-filter: saturate(180%) blur(12px);
+}
+
+// Code block: matches GitHub dark code surface
+[data-theme='dark'] .tk-code-block {
+  color: var(--tk-text-primary);
+  background-color: #0d1117;
+  border-color: var(--tk-border-color-base);
+}
+
+// Skeleton shimmer: dimmer sweep on dark surfaces
+[data-theme='dark'] .tk-skeleton::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(255 255 255 / 10%) 50%,
+    transparent 100%
+  );
+}
+
+// Images/logos: slight dim so they don't glare on dark bg
+[data-theme='dark'] img[data-theme-dim] {
+  filter: brightness(0.88);
+}
+
+// Focus ring: brighter halo for AA on dark surfaces
+[data-theme='dark'] :focus-visible {
+  outline: 2px solid var(--tk-primary-color);
+  outline-offset: 2px;
+  box-shadow: var(--tk-shadow-focus);
+}
+
+// Hero wash reads as a luminous gradient on dark
+[data-theme='dark'] .tk-hero-wash {
+  background: var(--tk-gradient-hero);
+}
+
+// Tables: subtle stripe uses surface-hover instead of grey
+[data-theme='dark'] .tk-table--striped tbody tr:nth-of-type(odd) {
+  background-color: rgb(255 255 255 / 1.5%);
+}

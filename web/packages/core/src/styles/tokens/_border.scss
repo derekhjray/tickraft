@@ -1,0 +1,63 @@
+// Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Dual-licensed — see LICENSE for details.
+
+// Border design tokens
+// Aligned with the prototype tokens.css border width, radius and border color
+// system (Tickraft Design System "Signal Observatory"). Opacity-based borders; 
+// border-first design (shadows reserved for floating elements).
+:root {
+  // ===== Border widths =====
+  --tk-border-width: 1px;
+
+  // ===== Border radius (prototype scale) =====
+  --tk-radius-none: 0;
+  --tk-radius-xs: 2px;
+  --tk-radius-sm: 4px;
+  --tk-radius-base: 6px;
+  --tk-radius-md: 8px;
+  --tk-radius-lg: 12px;
+  --tk-radius-xl: 16px;
+  --tk-radius-2xl: 20px;
+  --tk-radius-3xl: 24px;
+  --tk-radius-round: 999px;
+  --tk-radius-circle: 50%;
+
+  // App-specific aliases (components reference --tk-border-radius-*)
+  --tk-border-radius-none: var(--tk-radius-none);
+  --tk-border-radius-xs: var(--tk-radius-xs);
+  --tk-border-radius-sm: var(--tk-radius-sm);
+  --tk-border-radius-base: var(--tk-radius-base);
+  --tk-border-radius-md: var(--tk-radius-md);
+  --tk-border-radius-lg: var(--tk-radius-lg);
+  --tk-border-radius-xl: var(--tk-radius-xl);
+  --tk-border-radius-2xl: var(--tk-radius-2xl);
+  --tk-border-radius-3xl: var(--tk-radius-3xl);
+  --tk-border-radius-round: var(--tk-radius-round);
+  --tk-border-radius-circle: var(--tk-radius-circle);
+  --tk-radius-full: var(--tk-radius-round);
+
+  // ===== Border colors (opacity-based) =====
+  --tk-border-color-base: #e2e8f0;
+  --tk-border-color-light: #eef2f6;
+  --tk-border-color-lighter: #f1f5f9;
+  --tk-border-color-extra-light: #f8fafc;
+  --tk-border-color-dark: #cbd5e1;
+
+  // App-specific semantic border-color aliases (components reference these
+  // when they need a color value, e.g. `border-color: var(--tk-border-color)`)
+  --tk-border-subtle: var(--tk-border-color-lighter);
+  --tk-border-strong: var(--tk-border-color-dark);
+  --tk-border-color: var(--tk-border-color-base);
+
+  // ===== Border shorthands (prototype) =====
+  // These are full `1px solid <color>` shorthands matching the prototype
+  // tokens.css. Use `border: var(--tk-border-default)` directly. For dashed
+  // or custom-width borders, use the color tokens above, e.g.
+  // `border: 1px dashed var(--tk-border-color-base)`.
+  --tk-border-default: 1px solid var(--tk-border-color-base);
+  --tk-border-light: 1px solid var(--tk-border-color-light);
+  --tk-border-lighter: 1px solid var(--tk-border-color-lighter);
+  --tk-border-primary: 1px solid var(--tk-primary-color-border);
+  --tk-border-sidebar: 1px solid rgb(255 255 255 / 8%);
+}

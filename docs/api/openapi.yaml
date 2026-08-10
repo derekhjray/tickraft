@@ -1,0 +1,2245 @@
+# Version: V2.1 | Updated: 2026-06-29 | Status: active
+#
+# Tickraft open-source repository OpenAPI specification
+# - Includes only routes actually registered in the open-source repository
+#   (pkg/api/handler/routes.go + pkg/collector/http/listener.go)
+# - Excludes extension-repository routes (/admin/*, /channels/*, etc.)
+# - Path prefix is uniformly /api/v1/ (healthz is a cluster-level probe and
+#   retains the root path)
+openapi: 3.0.3
+info:
+  title: Tickraft Open API
+  version: 2.0.0
+  description: |
+    Tickraft open-source edition REST API specification.
+
+    ## Base Information
+    - Base path: `/api/v1`
+    - Default ports: API server `6153`, Telemetry report endpoint `6253`
+    - Unified response format: `{ "code": int, "msg": string, "data": object }`
+    - Paginated response `data` structure: `{ "items": array, "total": int, "page": int, "size": int }`
+
+    ## Authentication Schemes
+    - **JWT Bearer**: default authentication for business endpoints, transmitted via `Authorization: Bearer {access_token}`
+    - **HMAC Signature**: enabled for the Telemetry report endpoints when a secret is configured; the HMAC-SHA256 hex digest of the request body is sent via the `X-Tickraft-Signature` header
+    - **Asset Key**: enabled for the Telemetry report endpoints when no secret is configured; the asset key is sent via the `X-Tickraft-Asset-Key` header
+    - **API Key**: transmitted via the `X-API-Key` header, used for server-to-server calls (reserved in the open-source edition)
+
+    ## Common Request Headers
+    - `X-Tickraft-Request-Id`: request tracing identifier; clients are encouraged to generate and send it, and the server will pass it through or auto-generate one
+
+servers:
+  - url: http://localhost:6153
+    description: Local development environment (API server)
+  - url: http://localhost:6253
+    description: Local development environment (Telemetry report endpoint)
+
+tags:
+  - name: auth
+    description: "Auth module: login, logout, token refresh, password change, and API key management"
+  - name: task
+    description: "Task module: manage scheduled tasks and execution records"
+  - name: scheduler
+    description: "Scheduler module: task scheduling and execution statistics"
+  - name: asset
+    description: "Asset module: manage monitored assets"
+  - name: telemetry
+    description: "Telemetry module: collection tasks and state reports"
+  - name: alert
+    description: "Alert center module: manage alert rules and alert records"
+  - name: system
+    description: "System settings module: manage global configuration and runtime information"
+  - name: meta
+    description: "Metadata endpoint: cluster health probe"
+
+paths:
+  # ---------------------------------------------------------------------------
+  # Meta - Cluster health probe
+  # ---------------------------------------------------------------------------
+  /healthz:
+    get:
+      tags: [meta]
+      summary: Cluster health probe
+      description: |
+        Cluster-level health check endpoint, independent of the business
+        authentication system.
+        The current implementation always returns `{"status":"ok"}`; future
+        versions will integrate DB/MQ/Cache dependency checks and return 503
+        with a failure list when dependencies are unhealthy.
+      operationId: healthz
+      security: []
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            example: ok
+        '503':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ---------------------------------------------------------------------------
+  # Auth - Authentication and authorization
+  # ---------------------------------------------------------------------------
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      summary: User login
+      description: Exchange username and password for an access token and refresh token.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TokenPair'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [auth]
+      summary: Refresh access token
+      description: Exchange a refresh token for a new access token and refresh token.
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Refresh successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TokenPair'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/logout:
+    post:
+      tags: [auth]
+      summary: User logout
+      description: |
+        Adds the current access token to a blacklist so it is invalidated
+        immediately.
+        The refresh token remains valid until it naturally expires or is
+        explicitly revoked.
+      operationId: logout
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/password:
+    put:
+      tags: [auth]
+      summary: Change current user password
+      operationId: changePassword
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password change successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/apikeys:
+    get:
+      tags: [auth]
+      summary: List API keys
+      description: Return metadata for all API keys under the current user/tenant (without the raw key).
+      operationId: listAPIKeys
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/APIKey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [auth]
+      summary: Create API key
+      description: |
+        Generate a new API key. The raw key (raw_key) is returned only in this
+        response; subsequent queries return only metadata such as the key
+        prefix (key_prefix).
+      operationId: createAPIKey
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAPIKeyRequest'
+      responses:
+        '200':
+          description: Creation successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/APIKey'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/apikeys/{id}:
+    delete:
+      tags: [auth]
+      summary: Revoke API key
+      operationId: revokeAPIKey
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Revocation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------------------
+  # Task - Task module (scheduled tasks and execution records)
+  # ---------------------------------------------------------------------------
+  /api/v1/tasks:
+    get:
+      tags: [task]
+      summary: Paginated list of tasks
+      operationId: listTasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PageData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [task]
+      summary: Create scheduled task
+      operationId: createTask
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreateRequest'
+      responses:
+        '200':
+          description: Creation successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/tasks/{id}:
+    get:
+      tags: [task]
+      summary: Query a single task detail
+      operationId: getTask
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [task]
+      summary: Update scheduled task
+      operationId: updateTask
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreateRequest'
+      responses:
+        '200':
+          description: Update successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [task]
+      summary: Delete scheduled task
+      operationId: deleteTask
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Deletion successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/tasks/{id}/trigger:
+    post:
+      tags: [task]
+      summary: Trigger task execution immediately
+      description: Trigger a single task execution immediately, bypassing the schedule.
+      operationId: triggerTask
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Trigger successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/tasks/{id}/copy:
+    post:
+      tags: [task]
+      summary: Copy a task
+      description: |
+        Creates a copy of an existing task with a new ID. All fields including
+        Group, Tags, and Config are copied. The source task remains unchanged.
+      operationId: copyTask
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCopyRequest'
+      responses:
+        '201':
+          description: Copy successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/tasks/executions:
+    get:
+      tags: [task]
+      summary: Paginated list of task execution records
+      description: |
+        Returns a list of task execution records, supporting filtering by
+        task_id. The task_id can be passed via query or path; the handler
+        accepts both, so no separate sub-route is registered for a single task.
+      operationId: listExecutions
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+        - name: task_id
+          in: query
+          required: false
+          description: Filter execution records by task ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        allOf:
+                          - $ref: '#/components/schemas/PageData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/tasks/executions/{id}:
+    get:
+      tags: [task]
+      summary: Query a single execution record
+      operationId: getExecution
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ExecutionRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------------------
+  # Scheduler - Execution statistics
+  # ---------------------------------------------------------------------------
+  /api/v1/tasks/stats:
+    get:
+      tags: [scheduler]
+      summary: Get execution statistics
+      description: |
+        Returns aggregated execution statistics for tasks within an optional
+        time range. Defaults to the last 24 hours when no range is specified.
+      operationId: getExecutionStats
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: false
+          description: Start of the time range (inclusive), RFC3339 date-time format
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          description: End of the time range (inclusive), RFC3339 date-time format
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ExecutionStats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ---------------------------------------------------------------------------
+  # Asset - Asset module (monitored assets)
+  # ---------------------------------------------------------------------------
+  /api/v1/assets:
+    get:
+      tags: [asset]
+      summary: Paginated list of assets
+      description: |
+        Returns the list of monitored assets (task/device/host/port/website/service types).
+        The open-source edition registers full CRUD, matching routes.go:94-98.
+      operationId: listAssets
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        allOf:
+                          - $ref: '#/components/schemas/PageData'
+                          - type: object
+                            properties:
+                              items:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Asset'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [asset]
+      summary: Create asset
+      description: Create a new monitored asset.
+      operationId: createAsset
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetCreateRequest'
+      responses:
+        '200':
+          description: Creation successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Asset'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/assets/{id}:
+    get:
+      tags: [asset]
+      summary: Query a single asset detail
+      operationId: getAsset
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Asset'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [asset]
+      summary: Update asset
+      operationId: updateAsset
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetCreateRequest'
+      responses:
+        '200':
+          description: Update successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Asset'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [asset]
+      summary: Delete asset
+      operationId: deleteAsset
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Deletion successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------------------
+  # Telemetry - Telemetry module (collection tasks and state reports)
+  # ---------------------------------------------------------------------------
+  /api/v1/telemetry:
+    get:
+      tags: [telemetry]
+      summary: Paginated list of collection tasks
+      description: |
+        Returns a paginated list of telemetry collection tasks.
+        Each task defines a target asset and a collection schedule that
+        drives periodic probing or passive receiving.
+      operationId: listTelemetryTasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        allOf:
+                          - $ref: '#/components/schemas/PageData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [telemetry]
+      summary: Create collection task
+      description: Create a new telemetry collection task bound to a target asset.
+      operationId: createTelemetryTask
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelemetryTaskCreateRequest'
+      responses:
+        '200':
+          description: Creation successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TelemetryTask'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/telemetry/{id}:
+    get:
+      tags: [telemetry]
+      summary: Query a single collection task detail
+      operationId: getTelemetryTask
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TelemetryTask'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [telemetry]
+      summary: Update collection task
+      operationId: updateTelemetryTask
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelemetryTaskCreateRequest'
+      responses:
+        '200':
+          description: Update successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TelemetryTask'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [telemetry]
+      summary: Delete collection task
+      operationId: deleteTelemetryTask
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Deletion successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------------------
+  # Telemetry - Distributed report endpoints
+  # ---------------------------------------------------------------------------
+  /api/v1/telemetry/heartbeat:
+    post:
+      tags: [telemetry]
+      summary: Asset heartbeat report
+      description: |
+        Receiver endpoint for asset heartbeat and liveness reports.
+
+        Authentication is enforced via the `X-Tickraft-Asset-Key` header
+        (AssetKey scheme) when the server has no HMAC secret configured, or
+        via the `X-Tickraft-Signature` header (HMAC-SHA256 hex digest of the
+        raw request body) when a secret is configured.
+
+        Maximum request body size is 1 KiB; exceeding it returns 413.
+        Asset identity is resolved from the asset key supplied in the
+        header (or from `asset_id`/`asset_key` + `tenant_id` in the body
+        when present).
+      operationId: reportHeartbeat
+      security:
+        - AssetKeyAuth: []
+        - HMACSignature: []
+      parameters:
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/SignatureHeader'
+        - $ref: '#/components/parameters/AssetKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HeartbeatReport'
+      responses:
+        '202':
+          description: Report accepted
+        '400':
+          description: Malformed request body or missing asset identity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Asset key missing/invalid or HMAC signature mismatch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Asset ID or asset key not found in the store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '413':
+          description: Request body exceeds the 1 KiB limit
+
+  /api/v1/telemetry/metrics:
+    post:
+      tags: [telemetry]
+      summary: Asset metrics report
+      description: |
+        Receiver endpoint for numeric metric data reported by assets.
+
+        Authentication is enforced via the `X-Tickraft-Asset-Key` header
+        (AssetKey scheme) when the server has no HMAC secret configured, or
+        via the `X-Tickraft-Signature` header (HMAC-SHA256 hex digest of the
+        raw request body) when a secret is configured.
+
+        Maximum request body size is 64 KiB; exceeding it returns 413.
+        Asset identity is resolved from the asset key supplied in the
+        header (or from `asset_id`/`asset_key` + `tenant_id` in the body
+        when present).
+      operationId: reportMetrics
+      security:
+        - AssetKeyAuth: []
+        - HMACSignature: []
+      parameters:
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/SignatureHeader'
+        - $ref: '#/components/parameters/AssetKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MetricsReport'
+      responses:
+        '202':
+          description: Report accepted
+        '400':
+          description: Malformed request body or missing asset identity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Asset key missing/invalid or HMAC signature mismatch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Asset ID or asset key not found in the store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '413':
+          description: Request body exceeds the 64 KiB limit
+
+  /api/v1/telemetry/logs:
+    post:
+      tags: [telemetry]
+      summary: Asset logs report
+      description: |
+        Receiver endpoint for log data reported by assets.
+
+        Authentication is enforced via the `X-Tickraft-Asset-Key` header
+        (AssetKey scheme) when the server has no HMAC secret configured, or
+        via the `X-Tickraft-Signature` header (HMAC-SHA256 hex digest of the
+        raw request body) when a secret is configured.
+
+        Maximum request body size is 1 MiB; exceeding it returns 413.
+        Asset identity is resolved from the asset key supplied in the
+        header (or from `asset_id`/`asset_key` + `tenant_id` in the body
+        when present).
+      operationId: reportLogs
+      security:
+        - AssetKeyAuth: []
+        - HMACSignature: []
+      parameters:
+        - $ref: '#/components/parameters/RequestIdHeader'
+        - $ref: '#/components/parameters/SignatureHeader'
+        - $ref: '#/components/parameters/AssetKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogsReport'
+      responses:
+        '202':
+          description: Report accepted
+        '400':
+          description: Malformed request body or missing asset identity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Asset key missing/invalid or HMAC signature mismatch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Asset ID or asset key not found in the store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '413':
+          description: Request body exceeds the 1 MiB limit
+
+  # ---------------------------------------------------------------------------
+  # Alert - Alert center
+  # ---------------------------------------------------------------------------
+  /api/v1/alert/rules:
+    get:
+      tags: [alert]
+      summary: Paginated list of alert rules
+      operationId: listAlertRules
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        allOf:
+                          - $ref: '#/components/schemas/PageData'
+                          - type: object
+                            properties:
+                              items:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/AlertRule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [alert]
+      summary: Create alert rule
+      operationId: createAlertRule
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertRuleCreateRequest'
+      responses:
+        '200':
+          description: Creation successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AlertRule'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/alert/rules/{id}:
+    get:
+      tags: [alert]
+      summary: Query a single alert rule
+      operationId: getAlertRule
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AlertRule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [alert]
+      summary: Update alert rule
+      operationId: updateAlertRule
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertRuleCreateRequest'
+      responses:
+        '200':
+          description: Update successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AlertRule'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [alert]
+      summary: Delete alert rule
+      operationId: deleteAlertRule
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Deletion successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/alert/records:
+    get:
+      tags: [alert]
+      summary: Paginated list of alert records
+      operationId: listAlertRecords
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        allOf:
+                          - $ref: '#/components/schemas/PageData'
+                          - type: object
+                            properties:
+                              items:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/AlertRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/alert/records/{id}:
+    get:
+      tags: [alert]
+      summary: Query a single alert record
+      operationId: getAlertRecord
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AlertRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------------------
+  # System - System settings
+  # ---------------------------------------------------------------------------
+  /api/v1/system/config:
+    get:
+      tags: [system]
+      summary: Query system configuration
+      operationId: getSystemConfig
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SystemConfig'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [system]
+      summary: Update system configuration
+      operationId: updateSystemConfig
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SystemConfig'
+      responses:
+        '200':
+          description: Update successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SystemConfig'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/system/info:
+    get:
+      tags: [system]
+      summary: Query runtime system information
+      description: |
+        Returns runtime information such as system version, build tags, start
+        time, and uptime.
+        The open-source edition returns only basic system information; the
+        extended edition can inject additional fields via the SystemService SPI.
+      operationId: getSystemInfo
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SystemInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/system/stats:
+    get:
+      tags: [system]
+      summary: Get global system statistics
+      description: |
+        Returns global statistics aggregated across the entire system, including
+        total tasks, total devices, today's executions, and today's success rate.
+      operationId: getGlobalStats
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Query successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/GlobalStats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/system/certificates/reload:
+    post:
+      tags: [system]
+      summary: Reload TLS certificates
+      description: |
+        Rebuilds the active TLS configuration from the configured certificate
+        and key files and publishes it atomically. Returns the SHA-256
+        fingerprint (lowercase hex) of the newly loaded leaf certificate for
+        operational verification.
+
+        Mounting condition: registered only when the API server has TLS enabled
+        and a CertificateHandler is injected via WithCertificateHandler (see
+        pkg/api/handler/routes.go and pkg/api/handler/certificates.go).
+        Authentication is enforced by the JWT middleware of the system route
+        group; specific role permissions are determined by the permission
+        middleware configured at route registration time.
+
+        On failure, returns a standard ApiResponse-wrapped error (certificate
+        or key file unreadable, parsing failure, etc.; see the ErrTLS* and
+        ErrACME* errors in pkg/api/tls.go for details).
+      operationId: reloadCertificates
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Reload successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CertificateReloadResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+# ---------------------------------------------------------------------------
+# Components
+# ---------------------------------------------------------------------------
+components:
+  # -------------------------------------------------------------------------
+  # Authentication schemes
+  # -------------------------------------------------------------------------
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 'JWT Bearer token, transmitted via Authorization: Bearer {access_token}.'
+    APIKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API Key authentication. The raw key is sent in the `X-API-Key` header; the server compares its SHA-256 hash.
+    AssetKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Tickraft-Asset-Key
+      description: |
+        Telemetry report asset key authentication.
+        Enabled when the server has no HMAC secret configured; the key must be
+        a valid asset key issued by the system.
+    HMACSignature:
+      type: apiKey
+      in: header
+      name: X-Tickraft-Signature
+      description: |
+        Telemetry report HMAC signature authentication.
+        Enabled when the server has a secret configured; the value is the
+        HMAC-SHA256 hex digest of the raw request body.
+
+  # -------------------------------------------------------------------------
+  # Common parameters
+  # -------------------------------------------------------------------------
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      description: Unique asset identifier (int64).
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    PageQuery:
+      name: page
+      in: query
+      required: false
+      description: Page number, starting from 1; defaults to 1.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    SizeQuery:
+      name: size
+      in: query
+      required: false
+      description: Page size; defaults to 20. The server enforces an upper bound.
+      schema:
+        type: integer
+        minimum: 1
+        default: 20
+    RequestIdHeader:
+      name: X-Tickraft-Request-Id
+      in: header
+      required: false
+      description: Request tracing identifier. Clients may send it for end-to-end tracing; the server auto-generates one when absent.
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9\-_]{8,64}$'
+    SignatureHeader:
+      name: X-Tickraft-Signature
+      in: header
+      required: false
+      description: |
+        HMAC-SHA256 signature (lowercase hex). Required when the server has a
+        secret configured; the input to the signature is the raw request body.
+      schema:
+        type: string
+        pattern: '^[0-9a-f]{64}$'
+    AssetKeyHeader:
+      name: X-Tickraft-Asset-Key
+      in: header
+      required: false
+      description: Asset key. Required when the server has no secret configured; used to resolve the reporting asset identity.
+      schema:
+        type: string
+
+  # -------------------------------------------------------------------------
+  # Common responses
+  # -------------------------------------------------------------------------
+  responses:
+    BadRequest:
+      description: Request parameter validation failed or malformed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          example:
+            code: 40000
+            msg: invalid request parameter
+            data: null
+    Unauthorized:
+      description: Not authenticated or token invalid/expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          example:
+            code: 40100
+            msg: missing authorization header
+            data: null
+    Forbidden:
+      description: Authenticated but lacks permission to access the asset
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          example:
+            code: 40300
+            msg: permission denied
+            data: null
+    NotFound:
+      description: Asset not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          example:
+            code: 40400
+            msg: asset not found
+            data: null
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          example:
+            code: 50000
+            msg: internal error
+            data: null
+
+  # -------------------------------------------------------------------------
+  # Data models
+  # -------------------------------------------------------------------------
+  schemas:
+    ApiResponse:
+      type: object
+      description: Unified response wrapper structure
+      properties:
+        code:
+          type: integer
+          description: Business code; 0 indicates success, non-zero indicates an error (the first 3 digits usually align with the HTTP status code).
+          example: 0
+        msg:
+          type: string
+          description: Hint message; "ok" on success.
+          example: ok
+        data:
+          description: Business data; null on error.
+          nullable: true
+
+    PageData:
+      type: object
+      description: Paginated data wrapper structure, returned as ApiResponse.data
+      properties:
+        items:
+          type: array
+          description: List of data items on the current page
+          items: {}
+        total:
+          type: integer
+          format: int64
+          description: Total record count
+          example: 100
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        size:
+          type: integer
+          description: Page size
+          example: 20
+
+    # --- Auth schemas ---
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          description: Username
+        password:
+          type: string
+          description: Password (transmitted in plaintext; recommended only for intranet or HTTPS environments)
+          format: password
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+          description: Refresh token
+
+    ChangePasswordRequest:
+      type: object
+      required: [old_password, new_password]
+      properties:
+        old_password:
+          type: string
+          format: password
+          description: Current password
+        new_password:
+          type: string
+          format: password
+          description: New password
+
+    CreateAPIKeyRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: API key name, for identification purposes
+        expired_at:
+          type: string
+          format: date-time
+          description: Expiration time (RFC3339), optional; never expires if omitted
+          nullable: true
+
+    TokenPair:
+      type: object
+      description: Access token and refresh token pair
+      properties:
+        access_token:
+          type: string
+          description: Access token (JWT), short-lived
+        refresh_token:
+          type: string
+          description: Refresh token, long-lived, used to obtain a new access token
+
+    APIKey:
+      type: object
+      description: API key metadata
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: API key primary key
+        name:
+          type: string
+          description: Name
+        raw_key:
+          type: string
+          description: Raw key, returned only once at creation time
+        key_prefix:
+          type: string
+          description: Key prefix, used for subsequent identification
+        status:
+          type: integer
+          description: Status code (0 = normal, other values indicate revoked, etc.)
+        created_at:
+          type: string
+          format: date-time
+        expired_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    # --- Task schemas ---
+    Task:
+      type: object
+      description: Scheduled task
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Task primary key
+        name:
+          type: string
+          description: Task name
+        description:
+          type: string
+          description: Task description
+        executor:
+          type: string
+          description: |
+            Executor type, which determines the structure of config and the
+            execution pipeline.
+            Built-in values in the open-source edition: `http`, `tcp`, `local`,
+            `webhook`, `icmp`.
+            Extension values in the pro repository: `dns`, `udp`
+            (included by default in pro builds, no build tags required).
+          enum: [http, tcp, local, webhook, icmp]
+          example: http
+        config:
+          type: object
+          description: |
+            Executor parameters; structure varies by executor:
+            - `http`: `{ "method": "GET", "url": "https://example.com", "headers": {...}, "timeout": "10s" }`
+            - `tcp`: `{ "host": "127.0.0.1", "port": 3306, "timeout": "5s" }`
+            - `local`: `{ "interpreter": "bash", "source": "...", "timeout": "30s" }`
+            - `webhook`: `{ "url": "...", "method": "POST", "headers": {...} }`
+            - `icmp`: `{ "host": "127.0.0.1", "timeout": "5s" }`
+          additionalProperties: true
+          nullable: true
+        schedule:
+          type: string
+          description: Schedule expression; supports cron expressions or interval descriptors (e.g. `@every 30s`)
+          example: "*/5 * * * *"
+        enabled:
+          type: boolean
+          description: Whether enabled
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TaskCreateRequest:
+      type: object
+      required: [name, executor]
+      properties:
+        name:
+          type: string
+          description: Task name
+        description:
+          type: string
+          description: Task description
+        executor:
+          type: string
+          description: "Executor type (open-source edition: http/tcp/local/webhook/icmp)"
+          enum: [http, tcp, local, webhook, icmp]
+        config:
+          type: object
+          description: Executor parameters; structure determined by executor, see Task.config
+          additionalProperties: true
+          nullable: true
+        schedule:
+          type: string
+          description: Schedule expression
+        enabled:
+          type: boolean
+          description: Whether enabled; defaults to false
+
+    TaskCopyRequest:
+      type: object
+      description: Optional request body for copying a task
+      properties:
+        name:
+          type: string
+          description: |
+            Name for the copied task. If omitted, defaults to
+            "<original_name> (copy)".
+
+    ExecutionRecord:
+      type: object
+      description: Task execution record
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Execution record primary key
+        taskId:
+          type: integer
+          format: int64
+          description: Associated task ID
+        status:
+          type: string
+          description: Execution status
+          enum: [pending, running, success, failed]
+        output:
+          type: string
+          description: Execution output
+        error:
+          type: string
+          description: Execution error message (populated on failure)
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          description: Start time
+        finishedAt:
+          type: string
+          format: date-time
+          description: End time (null if not yet finished)
+          nullable: true
+
+    # --- Asset schemas ---
+    Asset:
+      type: object
+      description: Collector asset (monitored target)
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          description: Asset name
+        type:
+          type: string
+          description: |
+            Asset type, aligned with the constants defined in
+            pkg/asset/asset.go:13-23:
+            - task: scheduled task
+            - device: generic device
+            - host: host
+            - port: port
+            - website: website
+            - service: service
+          enum: [task, device, host, port, website, service]
+        target:
+          type: string
+          description: Probe target address
+          example: "https://example.com"
+        enabled:
+          type: boolean
+          description: Whether enabled
+        config:
+          type: object
+          description: Asset-specific configuration (timeout, retries, port, etc.)
+          additionalProperties: true
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AssetCreateRequest:
+      type: object
+      required: [name, type, target]
+      properties:
+        name:
+          type: string
+          description: Asset name
+        type:
+          type: string
+          description: Asset type
+          enum: [task, device, host, port, website, service]
+        target:
+          type: string
+          description: Probe target address
+        enabled:
+          type: boolean
+          description: Whether enabled; defaults to false
+        config:
+          type: object
+          description: Asset-specific configuration
+          additionalProperties: true
+          nullable: true
+
+    # --- Telemetry task schemas ---
+    TelemetryTask:
+      type: object
+      description: Telemetry collection task
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Telemetry task primary key
+        name:
+          type: string
+          description: Task name
+        description:
+          type: string
+          description: Task description
+          nullable: true
+        assetId:
+          type: integer
+          format: int64
+          description: ID of the target asset to collect from
+        assetName:
+          type: string
+          description: Snapshot of the target asset name (denormalized for display)
+          nullable: true
+        mode:
+          type: string
+          description: |
+            Collection mode:
+            - `prober`: actively probes the target on a schedule (e.g. ICMP/TCP/HTTP probing)
+            - `receiver`: passively receives data pushed by the target via the telemetry report endpoints
+          enum: [prober, receiver]
+          example: prober
+        probeType:
+          type: string
+          description: |
+            Probe type, required when `mode` is `prober`.
+            Open-source edition supports `icmp`, `tcp`, `http`.
+          enum: [icmp, tcp, http]
+          nullable: true
+        interval:
+          type: string
+          description: Schedule interval for `prober` mode (e.g. `30s`, `5m`). Ignored for `receiver` mode.
+          example: "30s"
+          nullable: true
+        receiverKind:
+          type: string
+          description: |
+            Receiver kind, required when `mode` is `receiver`.
+            Open-source edition supports `webhook`.
+          enum: [webhook]
+          nullable: true
+        enabled:
+          type: boolean
+          description: Whether enabled
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TelemetryTaskCreateRequest:
+      type: object
+      required: [name, assetId, mode]
+      properties:
+        name:
+          type: string
+          description: Task name
+        description:
+          type: string
+          description: Task description
+          nullable: true
+        assetId:
+          type: integer
+          format: int64
+          description: ID of the target asset to collect from
+        mode:
+          type: string
+          description: Collection mode (`prober` for active probing, `receiver` for passive receiving)
+          enum: [prober, receiver]
+        probeType:
+          type: string
+          description: Probe type, required when `mode` is `prober`
+          enum: [icmp, tcp, http]
+          nullable: true
+        interval:
+          type: string
+          description: Schedule interval for `prober` mode
+          nullable: true
+        receiverKind:
+          type: string
+          description: Receiver kind, required when `mode` is `receiver`
+          enum: [webhook]
+          nullable: true
+        enabled:
+          type: boolean
+          description: Whether enabled; defaults to false
+
+    # --- Telemetry report schemas ---
+    HeartbeatReport:
+      type: object
+      description: |
+        Asset heartbeat report body.
+        Maximum payload size is 1 KiB; the server returns 413 when exceeded.
+      properties:
+        asset_id:
+          type: integer
+          format: int64
+          description: Asset ID; takes precedence over asset_key for resolution when present.
+          nullable: true
+        asset_key:
+          type: string
+          description: Asset key; must be used together with tenant_id.
+          nullable: true
+        tenant_id:
+          type: integer
+          format: int64
+          description: Tenant ID; used together with asset_key to look up the asset.
+          nullable: true
+        status:
+          type: string
+          description: Pre-judged liveness status (e.g. `ok`, `down`, `unknown`)
+          example: ok
+        timestamp:
+          type: string
+          format: date-time
+          description: Reporting time (RFC3339)
+        message:
+          type: string
+          description: Short message (optional)
+          nullable: true
+
+    MetricsReport:
+      type: object
+      description: |
+        Asset metrics report body.
+        Maximum payload size is 64 KiB; the server returns 413 when exceeded.
+      properties:
+        asset_id:
+          type: integer
+          format: int64
+          description: Asset ID; takes precedence over asset_key for resolution when present.
+          nullable: true
+        asset_key:
+          type: string
+          description: Asset key; must be used together with tenant_id.
+          nullable: true
+        tenant_id:
+          type: integer
+          format: int64
+          description: Tenant ID; used together with asset_key to look up the asset.
+          nullable: true
+        metrics:
+          type: object
+          description: Numeric metric key-value pairs
+          additionalProperties:
+            type: number
+            format: double
+        timestamp:
+          type: string
+          format: date-time
+          description: Reporting time (RFC3339)
+
+    LogsReport:
+      type: object
+      description: |
+        Asset logs report body.
+        Maximum payload size is 1 MiB; the server returns 413 when exceeded.
+      properties:
+        asset_id:
+          type: integer
+          format: int64
+          description: Asset ID; takes precedence over asset_key for resolution when present.
+          nullable: true
+        asset_key:
+          type: string
+          description: Asset key; must be used together with tenant_id.
+          nullable: true
+        tenant_id:
+          type: integer
+          format: int64
+          description: Tenant ID; used together with asset_key to look up the asset.
+          nullable: true
+        level:
+          type: string
+          description: Log level; defaults to INFO
+          enum: [DEBUG, INFO, WARN, ERROR]
+          nullable: true
+        content:
+          type: string
+          description: Log content
+        timestamp:
+          type: string
+          format: date-time
+          description: Reporting time (RFC3339)
+
+    # --- Alert schemas ---
+    AlertRule:
+      type: object
+      description: Alert rule
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          description: Rule name
+        description:
+          type: string
+          description: Rule description (optional)
+          nullable: true
+        severity:
+          type: string
+          description: Severity level
+          enum: [info, warning, critical]
+          nullable: true
+        metric:
+          type: string
+          description: Monitoring metric name
+          example: cpu_usage
+        operator:
+          type: string
+          description: Comparison operator
+          enum: [gt, lt, eq, gte, lte]
+        threshold:
+          type: number
+          format: double
+          description: Threshold
+        window:
+          type: string
+          description: Statistics window, e.g. `5m`
+          example: "5m"
+        channels:
+          type: array
+          description: List of alert notification channel identifiers
+          items:
+            type: string
+          nullable: true
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AlertRuleCreateRequest:
+      type: object
+      required: [name, metric, operator, threshold, window]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        severity:
+          type: string
+          enum: [info, warning, critical]
+          nullable: true
+        metric:
+          type: string
+        operator:
+          type: string
+          enum: [gt, lt, eq, gte, lte]
+        threshold:
+          type: number
+          format: double
+        window:
+          type: string
+        channels:
+          type: array
+          items:
+            type: string
+          nullable: true
+        enabled:
+          type: boolean
+
+    AlertRecord:
+      type: object
+      description: Alert history record
+      properties:
+        id:
+          type: integer
+          format: int64
+        ruleId:
+          type: integer
+          format: int64
+          description: ID of the rule that triggered this record
+        ruleName:
+          type: string
+          description: Rule name snapshot
+        severity:
+          type: string
+          description: Severity level (from the rule snapshot)
+          enum: [info, warning, critical]
+          nullable: true
+        value:
+          type: number
+          format: double
+          description: Actual metric value at trigger time
+        status:
+          type: string
+          description: Alert status
+          enum: [firing, resolved]
+        message:
+          type: string
+          description: Alert message
+        firedAt:
+          type: string
+          format: date-time
+          description: Trigger time
+        resolvedAt:
+          type: string
+          format: date-time
+          description: Resolution time; null if not resolved
+          nullable: true
+
+    # --- System schemas ---
+    SystemConfig:
+      type: object
+      description: System configuration
+      properties:
+        logLevel:
+          type: string
+          description: Log level
+          enum: [debug, info, warn, error]
+        defaultLang:
+          type: string
+          description: Default language code
+          example: zh-Hans
+        retentionDays:
+          type: integer
+          description: Data retention days
+          example: 30
+
+    SystemInfo:
+      type: object
+      description: Runtime system information
+      properties:
+        version:
+          type: string
+          description: System version number
+        buildTags:
+          type: string
+          description: Build tags
+        startTime:
+          type: string
+          format: date-time
+          description: Process start time
+        uptime:
+          type: string
+          description: Uptime (human-readable)
+
+    CertificateReloadResponse:
+      type: object
+      description: Certificate reload response
+      properties:
+        fingerprint:
+          type: string
+          description: SHA-256 fingerprint of the newly loaded leaf certificate (lowercase hex, 64 characters)
+          example: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+
+    ExecutionStats:
+      type: object
+      description: Aggregated task execution statistics within a time range
+      properties:
+        total_executions:
+          type: integer
+          description: Total executions in the time range
+        success_count:
+          type: integer
+          description: Executions with normal/success status
+        failure_count:
+          type: integer
+          description: Executions with abnormal/failure status
+        success_rate:
+          type: number
+          format: double
+          description: Success rate as percentage (0-100)
+        average_duration_ms:
+          type: number
+          format: double
+          description: Average execution duration in milliseconds
+
+    GlobalStats:
+      type: object
+      description: Global system statistics
+      properties:
+        total_tasks:
+          type: integer
+          description: Total number of tasks
+        total_devices:
+          type: integer
+          description: Total number of device-type assets
+        today_executions:
+          type: integer
+          description: Number of executions in the current day
+        today_success_rate:
+          type: number
+          format: double
+          description: Today's success rate as percentage (0-100)
+
+# -----------------------------------------------------------------------------
+# Related documentation
+# -----------------------------------------------------------------------------
+# - ../architecture.md: open-source repository architecture overview and module boundaries
+# - ../module-spec.md: module boundary specification and constructor definitions
+# - ../executor-interfaces.md: executor interface specification and detailed config parameter definitions
+# - ../database-schema.md: database table structure and AutoMigrate entry points
+# - ../deployment.md: CLI commands and dual-port deployment mode
+# - ../extension-guide.md: pro repository SPI injection mechanism
+# - ../dependency-management.md: build dependency manifest and license compliance strategy

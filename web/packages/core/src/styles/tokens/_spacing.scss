@@ -1,0 +1,90 @@
+// Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Dual-licensed — see LICENSE for details.
+
+// Spacing & layout design tokens
+// Aligned with the prototype tokens.css spacing and layout size system
+// (Tickraft Design System v2.1 "Signal Observatory") — 4px base grid.
+:root {
+  // ===== Spacing (4px base grid, numeric scale) =====
+  --tk-spacing-0: 0;
+  --tk-spacing-1: 2px;
+  --tk-spacing-2: 4px;
+  --tk-spacing-3: 6px;
+  --tk-spacing-4: 8px;
+  --tk-spacing-5: 10px;
+  --tk-spacing-6: 12px;
+  --tk-spacing-8: 16px;
+  --tk-spacing-10: 20px;
+  --tk-spacing-12: 24px;
+  --tk-spacing-16: 32px;
+  --tk-spacing-20: 40px;
+  --tk-spacing-24: 48px;
+  --tk-spacing-32: 64px;
+  --tk-spacing-40: 80px;
+
+  // App-specific semantic aliases (components reference these)
+  --tk-spacing-xs: var(--tk-spacing-2);
+  --tk-spacing-sm: var(--tk-spacing-4);
+  --tk-spacing-md: var(--tk-spacing-6);
+  --tk-spacing-lg: var(--tk-spacing-8);
+  --tk-spacing-xl: var(--tk-spacing-10);
+  --tk-spacing-2xl: var(--tk-spacing-12);
+  --tk-spacing-3xl: var(--tk-spacing-16);
+  --tk-spacing-4xl: var(--tk-spacing-20);
+  --tk-spacing-5xl: var(--tk-spacing-24);
+  --tk-spacing-6xl: var(--tk-spacing-32);
+
+  // ===== Layout dimensions =====
+  --tk-sidebar-width: 248px;
+  --tk-sidebar-collapsed-width: 68px;
+  --tk-topbar-height: 60px;
+  --tk-content-max-width: 1600px;
+  --tk-content-padding-x: 28px;
+  --tk-content-padding-y: 24px;
+  --tk-card-radius: var(--tk-radius-lg);
+  --tk-card-padding: 20px;
+  --tk-card-gap: 16px;
+
+  // App-specific aliases (components reference these)
+  --tk-header-height: var(--tk-topbar-height);
+  --tk-logo-height: var(--tk-topbar-height);
+
+  // ===== Component sizes =====
+  --tk-control-height-sm: 28px;
+  --tk-control-height-md: 32px;
+  --tk-control-height-lg: 38px;
+  --tk-control-height-xl: 44px;
+  --tk-control-padding-x-sm: 10px;
+  --tk-control-padding-x-md: 12px;
+  --tk-control-padding-x-lg: 16px;
+
+  // ===== Table row heights (density) =====
+  --tk-row-height-compact: 32px;
+  --tk-row-height-comfortable: 40px;
+  --tk-row-height-spacious: 48px;
+  --tk-row-height-default: var(--tk-row-height-comfortable);
+}
+
+// ===== Density modes =====
+:root[data-density='compact'] {
+  --tk-control-height-md: 28px;
+  --tk-control-height-lg: 32px;
+  --tk-card-padding: 16px;
+  --tk-card-gap: 12px;
+  --tk-font-size-base: 12px;
+  --tk-font-size-md: 13px;
+  --tk-row-height-default: var(--tk-row-height-compact);
+}
+
+:root[data-density='comfortable'] {
+  --tk-row-height-default: var(--tk-row-height-comfortable);
+}
+
+:root[data-density='spacious'] {
+  --tk-control-height-md: 36px;
+  --tk-control-height-lg: 42px;
+  --tk-card-padding: 24px;
+  --tk-card-gap: 20px;
+  --tk-row-height-default: var(--tk-row-height-spacious);
+}

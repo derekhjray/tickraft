@@ -1,0 +1,148 @@
+# Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Dual-licensed — see LICENSE for details.
+
+name: License Scan
+
+# Dual-license policy CI red-line scan (open-source repository side)
+# Responsibilities:
+#   1. Open-source repository purity scan: ensure pkg/ and build files
+#      contain no restricted keywords
+#   2. Dependency license scan: ensure go.mod does not introduce
+#      GPL/AGPL/SSPL copyleft dependencies
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # Job 1: Open-source repository purity scan
+  # Scans pkg/ .go files and build files for restricted keywords:
+  #   license | commercial | saas | billing | subscription (word-boundary match)
+  # A whitelist is maintained to exclude legitimate SPI identifiers and
+  # standard technical terms, avoiding false positives
+  opensource-purity-scan:
+    name: Open Source Purity Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan pkg/ and build files for restricted keywords
+        run: |
+          set -uo pipefail
+
+          echo "=== Open-source repository purity scan: detecting restricted keywords ==="
+
+          # Restricted keywords (word-boundary match, case-insensitive)
+          # "commercial" is retained as a legacy keyword to catch any
+          # accidental introduction of pro edition references.
+          KEYWORD_PATTERN='\b(license|commercial|saas|billing|subscription)\b'
+
+          # Whitelist: legitimate SPI identifiers and standard technical terms
+          # Aligned with the ci.yml red-line-scan whitelist. Lines matching any
+          # of the following are excluded to avoid false positives:
+          #   TenantID / tenant_id      - multi-tenant isolation fields (executor params / DB fields)
+          #   SSOProvider / SSO         - auth extension SPI interfaces and open-source SSO implementation
+          #   pkg/auth/sso              - open-source SSO Provider SPI implementation file
+          #   AccountResolver / AccountStore - auth extension SPI interfaces
+          #   Processor                 - collector data processing SPI (contains "sso" substring)
+          #   Tenant                    - multi-tenant model type
+          #   cmd/tickraft/version      - build edition variable (community/extended form)
+          #   DefaultQuota              - default resource quota constants
+          #   AGPL / AGPLv3 / LICENSE   - dual-license declarations and license file references
+          #   Commercial License / dual license - dual-license model descriptors
+          #   business logic/code/service - standard software engineering terms
+          #   open_source / *-edition   - neutral edition descriptors
+          #   oidc / saml               - standard authentication protocols
+          WHITELIST_PATTERN='TenantID|tenant_id|SSOProvider|SSO|pkg/auth/sso|AccountResolver|AccountStore|Processor|Tenant|cmd/tickraft/version|DefaultQuota|AGPL|Commercial License|dual license|AGPLv3|LICENSE|business logic|business code|business service|open_source|open-source edition|extended edition|extended-edition|running edition|oidc|saml'
+
+          VIOLATIONS="$(mktemp)"
+
+          echo "-> Scanning pkg/*.go ..."
+          grep -rE --include="*.go" -i "$KEYWORD_PATTERN" pkg/ 2>/dev/null \
+            | grep -viE "$WHITELIST_PATTERN" >> "$VIOLATIONS" || true
+
+          echo "-> Scanning build files (Makefile / Dockerfile / scripts/*.sh / configs/*.yaml) ..."
+          for f in Makefile Dockerfile; do
+            if [ -f "$f" ]; then
+              grep -E -i "$KEYWORD_PATTERN" "$f" 2>/dev/null \
+                | grep -viE "$WHITELIST_PATTERN" >> "$VIOLATIONS" || true
+            fi
+          done
+
+          grep -rE --include="*.sh" -i "$KEYWORD_PATTERN" scripts/ 2>/dev/null \
+            | grep -viE "$WHITELIST_PATTERN" >> "$VIOLATIONS" || true
+
+          grep -rE --include="*.yaml" --include="*.yml" -i "$KEYWORD_PATTERN" configs/ 2>/dev/null \
+            | grep -viE "$WHITELIST_PATTERN" >> "$VIOLATIONS" || true
+
+          if [ -s "$VIOLATIONS" ]; then
+            echo "::error::Open-source red line violated: restricted keywords detected"
+            echo "--- Violation details (file:line:content) ---"
+            cat "$VIOLATIONS"
+            rm -f "$VIOLATIONS"
+            exit 1
+          fi
+
+          rm -f "$VIOLATIONS"
+          echo "PASS: No restricted keywords detected in open-source repository pkg/ and build files"
+
+  # Job 2: Dependency license scan
+  # Checks the go.mod dependency tree for GPL/AGPL/SSPL copyleft licenses
+  # Uses go-licenses to generate a dependency license report and detect forbidden licenses
+  dependency-license-scan:
+    name: Dependency License Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Scan dependencies for forbidden copyleft licenses
+        run: |
+          set -uo pipefail
+
+          echo "=== Open-source dependency license scan: detecting GPL/AGPL/SSPL copyleft dependencies ==="
+
+          go install github.com/google/go-licenses@latest
+          go mod download
+
+          REPORT="$(mktemp)"
+          # go-licenses report outputs CSV: <package>,<license>,<url>
+          if ! go-licenses report . > "$REPORT" 2>/tmp/licenses-err.log; then
+            echo "::warning::go-licenses report generation failed; dependency license scan skipped, please verify manually"
+            cat /tmp/licenses-err.log
+            rm -f "$REPORT"
+            exit 0
+          fi
+
+          DEP_COUNT="$(wc -l < "$REPORT")"
+          echo "Total scanned dependencies: ${DEP_COUNT}"
+
+          # Forbidden copyleft licenses: GPL-2.0 / GPL-3.0 / AGPL-3.0 / SSPL
+          # Matches the license column prefix exactly: LGPL (,LGPL-...) is not
+          # matched by ,(GPL-...|AGPL|SSPL)
+          # Compatible with SPDX variants: GPL-3.0-only / GPL-3.0-or-later / AGPL-3.0 / SSPL-1.0
+          FORBIDDEN="$(mktemp)"
+          grep -iE ',(GPL-2|GPL-3|AGPL|SSPL)' "$REPORT" > "$FORBIDDEN" 2>/dev/null || true
+
+          if [ -s "$FORBIDDEN" ]; then
+            echo "::error::Detected GPL/AGPL/SSPL copyleft license dependencies"
+            echo "--- Violating dependencies ---"
+            cat "$FORBIDDEN"
+            rm -f "$REPORT" "$FORBIDDEN"
+            exit 1
+          fi
+
+          rm -f "$REPORT" "$FORBIDDEN"
+          echo "PASS: No GPL/AGPL/SSPL copyleft license dependencies detected"

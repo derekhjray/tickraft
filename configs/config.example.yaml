@@ -1,0 +1,133 @@
+# Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Dual-licensed — see LICENSE for details.
+
+# tickraft configuration file.
+#
+# This file is the unified configuration for the `tickraft start` command,
+# which runs in standalone mode: a single process
+# that serves the API, SPA, scheduler, executor, collector, and prism
+# all on a single HTTP port. Copy it to config.yaml and adjust the
+# values for your environment.
+#
+# Environment variable interpolation:
+#   Sensitive values such as database DSNs and JWT secrets should be injected
+#   from the environment. Use dollar-brace-NAME-brace to reference a variable,
+#   or dollar-brace-NAME-colon-dash-DEFAULT-brace to supply a fallback. See
+#   the jwt_secret and dsn fields below for working examples.
+#   A reference to an unset variable without a default causes a load error.
+#
+# Validation:
+#   Run `tickraft config validate -c config.yaml` to check the file before
+#   starting the server.
+
+# ---------------------------------------------------------------------------
+# Server: HTTP API server settings.
+# ---------------------------------------------------------------------------
+# The runtime runs in single-port mode: the REST API, SPA
+# frontend, and webhook listener are all served from server.addr. No
+# separate console/webhook/metrics ports are bound.
+server:
+  # HTTP listen address for the REST API, SPA, and health probes.
+  addr: ":6153"
+  # Enable CORS middleware.
+  enable_cors: true
+  # Enable access log middleware.
+  enable_access_log: true
+  # Maximum size of request headers in bytes.
+  max_header_bytes: 1048576
+  # Maximum duration for reading the entire request. "0s" means no timeout.
+  read_timeout: "10s"
+  # Maximum duration before timing out writes of the response. "0s" means no timeout.
+  write_timeout: "30s"
+  # Interval between background maintenance sweeps (e.g. cleaning expired
+  # token blacklist entries).
+  maintenance_interval: "5m"
+
+# ---------------------------------------------------------------------------
+# Worker: worker process runtime parameters.
+# ---------------------------------------------------------------------------
+# Worker is a unified deployment mode; no role specification is needed. It
+# always starts the Scheduler, Executor, and Collector modules together, all
+# running in-process with no additional listen ports bound.
+worker:
+  # Maximum number of tasks executed concurrently by the executor pool.
+  # 0 means auto-sized to GOMAXPROCS*2 at startup.
+  concurrence: 0
+  # Default timeout for prober executors.
+  probe_timeout: "5s"
+
+# ---------------------------------------------------------------------------
+# Prism: alert evaluation engine.
+# ---------------------------------------------------------------------------
+# Prism runs in-process with no additional listen ports bound.
+prism:
+  # Interval between alert rule evaluations.
+  eval_interval: "30s"
+  # Goroutine pool size for sending notifications across all configured
+  # channels. 0 disables the pool (synchronous dispatch).
+  concurrence: 8
+  # Opaque notification channel configuration (path or inline JSON/YAML).
+  channel_config: ""
+
+# ---------------------------------------------------------------------------
+# Database: backend database connection.
+# ---------------------------------------------------------------------------
+# The runtime supports only SQLite3. The driver is derived from
+# the DSN scheme: sqlite:// or sqlite3:// (a bare file path like "tickraft.db"
+# is also treated as SQLite3 for backwards compatibility).
+# MySQL and PostgreSQL drivers are available in the extended edition via
+# the storage SPI.
+database:
+  # Data source name. Use env var interpolation for credentials.
+  # SQLite example:
+  #   dsn: "sqlite://tickraft.db"
+  # Connection pool tuning (max_open_conns, max_idle_conns) is not supported
+  # via structured fields; configure it via DSN query parameters instead,
+  # e.g. "sqlite:///path?_max_open_conns=10&_max_idle_conns=5".
+  dsn: ${TICKRAFT_DB_DSN}
+
+# ---------------------------------------------------------------------------
+# Auth: JWT token signing, lifetime, and built-in admin user.
+# ---------------------------------------------------------------------------
+auth:
+  # Secret used to sign JWT tokens. MUST be set. Use env var interpolation.
+  jwt_secret: ${TICKRAFT_JWT_SECRET}
+  # Lifetime of issued JWT tokens.
+  token_ttl: "24h"
+  # Built-in admin username. Defaults to "admin" when unset.
+  admin_username: "admin"
+  # Built-in admin password. When empty, a random password is generated and
+  # logged once at startup. Use env var interpolation to inject a known value.
+  admin_password: ${TICKRAFT_ADMIN_PASSWORD}
+
+# ---------------------------------------------------------------------------
+# Logger: logger level and mode.
+# ---------------------------------------------------------------------------
+logger:
+  # Log level: "debug", "info", "warn", or "error".
+  level: "info"
+  # Logging mode: "debug" (development) or "release" (production).
+  mode: "debug"
+  # Number of days to retain log files before they are rotated out and
+  # deleted. Defaults to 30 when unset or set to a non-positive value.
+  retention_days: 30
+
+# ---------------------------------------------------------------------------
+# I18n: internationalization runtime.
+# ---------------------------------------------------------------------------
+# The kernel ships builtin locale bundles for zh-Hans (default) and
+# en-US. The extended edition merges additional locales (zh-Hant, en-GB,
+# ar, ja, de, fr, es, ru, ko) via Registry.Register at startup; the
+# supported_locales list below can be extended to advertise those locales
+# to the frontend language switcher.
+i18n:
+  # Fallback locale used when no exact match is found in the Registry.
+  # Must be a valid BCP 47 tag; defaults to "zh-Hans".
+  default_locale: "zh-Hans"
+  # Locales advertised via GET /api/v1/i18n/locales. The default matches the
+  # builtin resource bundles shipped with the kernel. Extend this
+  # list when extended locale packs are registered.
+  supported_locales:
+    - "zh-Hans"
+    - "en-US"

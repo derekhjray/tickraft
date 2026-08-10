@@ -1,0 +1,110 @@
+// Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Dual-licensed — see LICENSE for details.
+
+// Element Plus theme variable bridge
+// Maps tk- design variables to Element Plus --el variables
+// Must be wrapped under .tk-app to avoid global pollution
+.tk-app {
+  // Primary color
+  --el-color-primary: var(--tk-primary-color);
+  --el-color-primary-light-3: var(--tk-primary-color-light-3);
+  --el-color-primary-light-5: var(--tk-primary-color-light-5);
+  --el-color-primary-light-7: var(--tk-primary-color-light-7);
+  --el-color-primary-light-8: var(--tk-primary-color-light-8);
+  --el-color-primary-light-9: var(--tk-primary-color-light-9);
+  --el-color-primary-dark-2: var(--tk-primary-color-dark-2);
+
+  // Functional colors
+  --el-color-success: var(--tk-success-color);
+  --el-color-success-light: var(--tk-success-color-light);
+  --el-color-success-dark: var(--tk-success-color-dark);
+  --el-color-warning: var(--tk-warning-color);
+  --el-color-warning-light: var(--tk-warning-color-light);
+  --el-color-warning-dark: var(--tk-warning-color-dark);
+  --el-color-danger: var(--tk-danger-color);
+  --el-color-danger-light: var(--tk-danger-color-light);
+  --el-color-danger-dark: var(--tk-danger-color-dark);
+  --el-color-info: var(--tk-info-color);
+  --el-color-info-light: var(--tk-info-color-light);
+  --el-color-info-dark: var(--tk-info-color-dark);
+
+  // Text colors
+  --el-text-color-primary: var(--tk-text-primary);
+  --el-text-color-regular: var(--tk-text-regular);
+  --el-text-color-secondary: var(--tk-text-secondary);
+  --el-text-color-placeholder: var(--tk-text-placeholder);
+  --el-text-color-disabled: var(--tk-text-disabled);
+
+  // Border colors
+  --el-border-color: var(--tk-border-color);
+  --el-border-color-light: var(--tk-border-color-light);
+  --el-border-color-lighter: var(--tk-border-color-lighter);
+  --el-border-color-extra-light: var(--tk-border-color-extra-light);
+
+  // Background colors
+  --el-bg-color: var(--tk-bg-color);
+  --el-bg-color-overlay: var(--tk-bg-color-overlay);
+  --el-bg-color-page: var(--tk-bg-color-page);
+
+  // Fill colors (aligned with the v4 neutral gradient, light to dark)
+  --el-fill-color: var(--tk-neutral-100);
+  --el-fill-color-light: var(--tk-neutral-50);
+  --el-fill-color-lighter: var(--tk-neutral-50);
+  --el-fill-color-extra-light: var(--tk-neutral-0);
+  --el-fill-color-dark: var(--tk-neutral-200);
+  --el-fill-color-darker: var(--tk-neutral-300);
+  --el-fill-color-blank: var(--tk-neutral-0);
+
+  // Shadows (border-first: floating layers use shadow-float; lightweight components have no shadow)
+  --el-box-shadow: var(--tk-shadow-float);
+  --el-box-shadow-light: var(--tk-shadow-float);
+  --el-box-shadow-lighter: var(--tk-shadow-sm);
+  --el-box-shadow-dark: var(--tk-shadow-float-lg);
+
+  // Border radius
+  --el-border-radius-base: var(--tk-border-radius-base);
+  --el-border-radius-small: var(--tk-border-radius-sm);
+  --el-border-radius-round: var(--tk-border-radius-round);
+  --el-border-radius-circle: var(--tk-border-radius-circle);
+
+  // Menu (el-menu) — sidebar uses a dark surface in both light and dark themes;
+  // Element Plus defaults to #fff which would create a white block inside the
+  // dark sidebar. Map menu variables to tk- sidebar tokens so the menu blends
+  // with the sidebar background in all themes.
+  --el-menu-bg-color: var(--tk-bg-color-sidebar);
+  --el-menu-text-color: var(--tk-text-sidebar);
+  --el-menu-active-color: var(--tk-text-sidebar-active);
+  --el-menu-hover-bg-color: var(--tk-bg-sidebar-hover);
+  --el-menu-border-color: transparent;
+  --el-menu-horizontal-hover-bg-color: var(--tk-bg-sidebar-hover);
+
+  // ===== el-table: header center alignment =====
+  // Table header alignment is now handled per-column in the DataTable
+  // component via el-table-column's :align prop, which el-table applies
+  // to both header and body cells. Removed the global !important center
+  // override that forced all headers to center regardless of column config.
+
+  // ===== Focus state: suppress global :focus-visible outline on inner form controls =====
+  // The global :focus-visible rule (themes/light.scss & dark.scss) draws an outline +
+  // box-shadow on EVERY focused element. For Element Plus form components (el-input,
+  // el-select, el-cascader, el-date-editor, etc.) the native <input>/<textarea> inside
+  // the wrapper receives focus, so the outline appears as a rectangle in the middle of
+  // the component instead of on the wrapper border.
+  // Fix: remove outline/box-shadow from inner native controls; Element Plus already
+  // styles the wrapper (.is-focus / :focus-within) with a primary-colored border.
+  .el-input__inner,
+  .el-textarea__inner,
+  .el-select__input,
+  .el-cascader__search-input,
+  .el-input__wrapper input,
+  .el-textarea__wrapper textarea,
+  .el-select__wrapper input,
+  .el-date-editor .el-input__inner,
+  .el-input-number__inner {
+    &:focus-visible {
+      outline: none;
+      box-shadow: none;
+    }
+  }
+}

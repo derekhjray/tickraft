@@ -1,0 +1,605 @@
+// Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Dual-licensed — see LICENSE for details.
+
+<script setup lang="ts">
+/**
+ * Asset list page.
+ *
+ * Lightweight asset registry list with status summary cards (inspired by the
+ * tickraft-x storyboard), keyword search, type / status filters, and standard
+ * CRUD actions. Backed by /api/v1/assets via the api/asset.ts layer.
+ */
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { ElMessage } from 'element-plus'
+import { SearchForm, DataTable, ConfirmDialog, StatusTag } from '@tickraft/core'
+import type { Asset, AssetStatus, AssetMetadata } from '../../../types/asset'
+import {
+  ASSET_TYPES,
+  ASSET_STATUSES,
+  getAssets,
+  deleteAsset,
+  parseMetadata,
+} from '../../../api/asset'
+
+const router = useRouter()
+const { t } = useI18n()
+
+const loading = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+const tableData = ref<Asset[]>([])
+
+/**
+ * Full dataset fetched from the backend. The backend ListAssets endpoint only
+ * supports page/size pagination — no keyword/type/status filtering — so we
+ * fetch the complete dataset (CE caps at 20 items) and apply filters
+ * client-side before rendering the current page slice.
+ */
+const allAssets = ref<Asset[]>([])
+
+/** Client-side filtered + paginated view of allAssets for the table. */
+const filteredAssets = computed(() => {
+  let items = allAssets.value
+  const kw = searchValues.keyword.trim().toLowerCase()
+  if (kw) {
+    items = items.filter(
+      (a) =>
+        a.name.toLowerCase().includes(kw) ||
+        a.assetKey.toLowerCase().includes(kw),
+    )
+  }
+  if (searchValues.type) {
+    items = items.filter((a) => a.assetType === searchValues.type)
+  }
+  if (searchValues.status) {
+    items = items.filter((a) => a.status === searchValues.status)
+  }
+  return items
+})
+
+const deleteVisible = ref(false)
+const deleteLoading = ref(false)
+const deleteTarget = ref<Asset | null>(null)
+
+/**
+ * Unfiltered status counts for the summary cards. Fetched independently of the
+ * table query so the cards always reflect the whole dataset regardless of the
+ * current search / type / status filter. The open-source quota caps the asset
+ * dataset at 20 items, so a single large-page request is sufficient.
+ */
+const summaryCounts = reactive<Record<AssetStatus | 'total', number>>({
+  total: 0,
+  normal: 0,
+  abnormal: 0,
+  offline: 0,
+  unknown: 0,
+})
+
+interface SearchValues {
+  keyword: string
+  type: string
+  status: string
+}
+
+const searchValues = reactive<SearchValues>({
+  keyword: '',
+  type: '',
+  status: '',
+})
+
+const searchFields = computed(() => [
+  {
+    key: 'keyword',
+    label: t('asset.list.searchKeyword'),
+    type: 'input' as const,
+    placeholder: t('asset.list.searchKeywordPlaceholder'),
+  },
+  {
+    key: 'type',
+    label: t('asset.list.type'),
+    type: 'select' as const,
+    placeholder: t('asset.list.typePlaceholder'),
+    options: ASSET_TYPES.map((value) => ({ label: t(`asset.type.${value}`), value })),
+  },
+  {
+    key: 'status',
+    label: t('asset.list.status'),
+    type: 'select' as const,
+    placeholder: t('asset.list.statusPlaceholder'),
+    options: ASSET_STATUSES.map((value) => ({ label: t(`asset.status.${value}`), value })),
+  },
+])
+
+/** Recompute the paginated table slice whenever filters or page change. */
+watch(
+  [filteredAssets, currentPage, pageSize],
+  () => {
+    const items = filteredAssets.value
+    total.value = items.length
+    const start = (currentPage.value - 1) * pageSize.value
+    tableData.value = items.slice(start, start + pageSize.value)
+  },
+  { immediate: true },
+)
+
+const summaryCards = computed(() => [
+  { key: '', label: t('asset.summary.total'), value: summaryCounts.total, tone: 'primary' as const, active: searchValues.status === '' },
+  { key: 'normal', label: t('asset.status.normal'), value: summaryCounts.normal, tone: 'success' as const, active: searchValues.status === 'normal' },
+  { key: 'abnormal', label: t('asset.status.abnormal'), value: summaryCounts.abnormal, tone: 'warning' as const, active: searchValues.status === 'abnormal' },
+  { key: 'offline', label: t('asset.status.offline'), value: summaryCounts.offline, tone: 'danger' as const, active: searchValues.status === 'offline' },
+  { key: 'unknown', label: t('asset.status.unknown'), value: summaryCounts.unknown, tone: 'info' as const, active: searchValues.status === 'unknown' },
+])
+
+const columns = computed(() => [
+  { prop: 'name', label: t('asset.list.name'), minWidth: 180, slot: 'name', align: 'left' as const },
+  { prop: 'assetType', label: t('asset.list.type'), minWidth: 120, slot: 'type' },
+  { prop: 'assetKey', label: t('asset.list.endpoint'), minWidth: 200, slot: 'endpoint', align: 'left' as const },
+  { prop: 'status', label: t('asset.list.status'), minWidth: 110, slot: 'status' },
+  { prop: 'labels', label: t('asset.list.labels'), minWidth: 200, slot: 'labels', align: 'left' as const },
+  { prop: 'lastActiveAt', label: t('asset.list.lastSeen'), minWidth: 170, slot: 'lastSeen' },
+])
+
+/**
+ * Fetch all assets from the backend (CE dataset is small) and apply
+ * client-side keyword / type / status filtering before paginating.
+ */
+async function fetchData(): Promise<void> {
+  loading.value = true
+  try {
+    // Fetch the full dataset once; filtering is done client-side because
+    // the backend ListAssets endpoint does not support keyword/type/status
+    // query parameters.
+    const res = await getAssets({ page: 1, pageSize: 1000 })
+    allAssets.value = res.items || []
+
+    // Also populate summary counts from the unfiltered dataset
+    summaryCounts.total = allAssets.value.length
+    summaryCounts.normal = 0
+    summaryCounts.abnormal = 0
+    summaryCounts.offline = 0
+    summaryCounts.unknown = 0
+    for (const item of allAssets.value) {
+      if (item.status in summaryCounts) {
+        summaryCounts[item.status] += 1
+      }
+    }
+  } catch {
+    allAssets.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+/** Summary cards are now populated inside fetchData; this is a no-op retained for compatibility. */
+async function fetchSummary(): Promise<void> {
+  // intentionally empty — counts are computed alongside fetchData
+}
+
+function handleSearch(values: Record<string, unknown>): void {
+  searchValues.keyword = (values.keyword as string) ?? ''
+  searchValues.type = (values.type as string) ?? ''
+  searchValues.status = (values.status as string) ?? ''
+  currentPage.value = 1
+  void fetchData()
+}
+
+function handleReset(): void {
+  searchValues.keyword = ''
+  searchValues.type = ''
+  searchValues.status = ''
+  currentPage.value = 1
+  void fetchData()
+}
+
+function handlePageChange({ current, pageSize: size }: { current: number; pageSize: number }): void {
+  currentPage.value = current
+  pageSize.value = size
+  void fetchData()
+}
+
+/** Click a summary card to filter by status (toggle off if already active) */
+function handleSummaryClick(status: string): void {
+  searchValues.status = searchValues.status === status ? '' : status
+  currentPage.value = 1
+  void fetchData()
+}
+
+function handleCreate(): void {
+  router.push('/asset/create')
+}
+
+function handleRefresh(): void {
+  void fetchData()
+  void fetchSummary()
+}
+
+function handleDetail(row: Asset): void {
+  router.push(`/asset/detail/${row.id}`)
+}
+
+function handleEdit(row: Asset): void {
+  router.push(`/asset/edit/${row.id}`)
+}
+
+function handleDelete(row: Asset): void {
+  deleteTarget.value = row
+  deleteVisible.value = true
+}
+
+async function confirmDelete(): Promise<void> {
+  if (!deleteTarget.value) return
+  deleteLoading.value = true
+  try {
+    await deleteAsset(deleteTarget.value.id)
+    ElMessage.success(t('asset.list.deleteSuccess'))
+    deleteVisible.value = false
+    deleteTarget.value = null
+    await Promise.all([fetchData(), fetchSummary()])
+  } catch {
+    // Errors are handled centrally by the interceptor
+  } finally {
+    deleteLoading.value = false
+  }
+}
+
+/** Extract typed metadata from the JSON-encoded metadata field */
+function meta(asset: Asset): AssetMetadata {
+  return parseMetadata(asset.metadata)
+}
+
+/** Format endpoint with optional port from metadata */
+function formatEndpoint(asset: Asset): string {
+  const m = meta(asset)
+  const endpoint = m.endpoint ?? asset.assetKey
+  return m.port ? `${endpoint}:${m.port}` : endpoint
+}
+
+/** Format ISO timestamp to a readable local string */
+function formatTime(iso: string): string {
+  if (!iso) return '-'
+  const d = new Date(iso.replace(' ', 'T'))
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleString()
+}
+
+onMounted(() => {
+  void fetchData()
+  void fetchSummary()
+})
+</script>
+
+<template>
+  <div class="tk-page-container">
+    <!-- Page header -->
+    <div class="tk-asset-header">
+      <div class="tk-asset-header__left">
+        <div class="tk-asset-header__title-row">
+          <h1 class="tk-asset-header__title">
+            {{ t('asset.list.title') }}
+          </h1>
+          <span class="tk-asset-header__count">
+            {{ total }} {{ t('asset.list.countSuffix') }}
+          </span>
+        </div>
+        <p class="tk-asset-header__subtitle">
+          {{ t('asset.list.subtitle') }}
+        </p>
+      </div>
+      <div class="tk-asset-header__actions">
+        <el-button @click="handleRefresh">
+          {{ t('asset.list.refresh') }}
+        </el-button>
+        <el-button
+          type="primary"
+          @click="handleCreate"
+        >
+          {{ t('asset.list.create') }}
+        </el-button>
+      </div>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="tk-asset-summary">
+      <button
+        v-for="card in summaryCards"
+        :key="card.key || 'total'"
+        type="button"
+        class="tk-asset-summary__card"
+        :class="[
+          `tk-asset-summary__card--${card.tone}`,
+          { 'tk-asset-summary__card--active': card.active },
+        ]"
+        @click="handleSummaryClick(card.key)"
+      >
+        <span class="tk-asset-summary__label">{{ card.label }}</span>
+        <span class="tk-asset-summary__value">{{ card.value }}</span>
+      </button>
+    </div>
+
+    <!-- Search area -->
+    <div class="tk-search-area">
+      <SearchForm
+        :fields="searchFields"
+        :model-value="searchValues"
+        :loading="loading"
+        @search="handleSearch"
+        @reset="handleReset"
+      />
+    </div>
+
+    <!-- Table area -->
+    <div class="tk-table-area">
+      <DataTable
+        table-id="asset-list"
+        :data="tableData"
+        :columns="columns"
+        :loading="loading"
+        :total="total"
+        :current="currentPage"
+        :page-size="pageSize"
+        @page-change="handlePageChange"
+      >
+        <template #name="{ row }">
+          <el-button
+            link
+            type="primary"
+            class="tk-asset-name-link"
+            @click="handleDetail(row as Asset)"
+          >
+            {{ (row as Asset).name }}
+          </el-button>
+        </template>
+
+        <template #type="{ row }">
+          <el-tag
+            size="small"
+            effect="light"
+            type="info"
+          >
+            {{ t(`asset.type.${(row as Asset).assetType}`) }}
+          </el-tag>
+        </template>
+
+        <template #endpoint="{ row }">
+          <span class="tk-asset-mono">{{ formatEndpoint(row as Asset) }}</span>
+        </template>
+
+        <template #status="{ row }">
+          <StatusTag
+            category="asset"
+            :status="(row as Asset).status"
+            size="sm"
+            show-icon
+          />
+        </template>
+
+        <template #labels="{ row }">
+          <span class="tk-asset-labels">
+            <el-tag
+              v-for="label in meta(row as Asset).labels ?? []"
+              :key="label"
+              size="small"
+              effect="plain"
+              class="tk-asset-label"
+            >
+              {{ label }}
+            </el-tag>
+            <span
+              v-if="!meta(row as Asset).labels?.length"
+              class="tk-asset-labels-empty"
+            >-</span>
+          </span>
+        </template>
+
+        <template #lastSeen="{ row }">
+          <span class="tk-asset-mono">{{ formatTime((row as Asset).lastActiveAt) }}</span>
+        </template>
+
+        <template #action-column>
+          <el-table-column
+            :label="t('asset.list.operation')"
+            width="180"
+            fixed="right"
+            align="center"
+            :resizable="false"
+          >
+            <template #default="{ row }">
+              <el-button
+                link
+                type="primary"
+                @click="handleDetail(row as Asset)"
+              >
+                {{ t('common.app.detail') }}
+              </el-button>
+              <el-button
+                link
+                type="primary"
+                @click="handleEdit(row as Asset)"
+              >
+                {{ t('common.app.edit') }}
+              </el-button>
+              <el-button
+                link
+                type="danger"
+                @click="handleDelete(row as Asset)"
+              >
+                {{ t('common.app.delete') }}
+              </el-button>
+            </template>
+          </el-table-column>
+        </template>
+      </DataTable>
+    </div>
+
+    <!-- Delete confirmation dialog -->
+    <ConfirmDialog
+      v-model="deleteVisible"
+      :title="t('asset.list.deleteTitle')"
+      :content="t('asset.list.deleteContent', { name: deleteTarget?.name ?? '' })"
+      :loading="deleteLoading"
+      type="danger"
+      @confirm="confirmDelete"
+    />
+  </div>
+</template>
+
+<style scoped lang="scss">
+.tk-asset-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--tk-spacing-md);
+  margin-bottom: var(--tk-spacing-md);
+
+  &__left {
+    min-width: 0;
+  }
+
+  &__title-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--tk-spacing-sm);
+  }
+
+  &__title {
+    font-size: var(--tk-font-size-xl);
+    font-weight: var(--tk-font-weight-semibold);
+    color: var(--tk-text-primary);
+    line-height: 1;
+    margin: 0;
+  }
+
+  &__count {
+    font-family: var(--tk-font-mono, monospace);
+    font-size: var(--tk-font-size-sm);
+    color: var(--tk-text-secondary);
+  }
+
+  &__subtitle {
+    margin-top: 6px;
+    font-size: var(--tk-font-size-sm);
+    color: var(--tk-text-secondary);
+    line-height: 1.5;
+    max-width: 640px;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--tk-spacing-sm);
+    flex-shrink: 0;
+  }
+}
+
+.tk-asset-summary {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--tk-spacing-sm);
+  margin-bottom: var(--tk-spacing-md);
+
+  &__card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--tk-spacing-xs);
+    padding: var(--tk-spacing-md) var(--tk-spacing-lg);
+    background-color: var(--tk-bg-surface);
+    border: 1px solid var(--tk-border-color-base);
+    border-radius: var(--tk-border-radius-base);
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color var(--tk-duration-fast) var(--tk-ease-out),
+      transform var(--tk-duration-fast) var(--tk-ease-out);
+    text-align: left;
+
+    &:hover {
+      border-color: var(--tk-border-color-dark);
+      transform: translateY(-1px);
+    }
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 3px;
+      height: 100%;
+      background-color: var(--tk-text-secondary);
+    }
+
+    &--primary::before { background-color: var(--tk-primary-color); }
+    &--success::before { background-color: var(--tk-success-color); }
+    &--warning::before { background-color: var(--tk-warning-color); }
+    &--danger::before { background-color: var(--tk-danger-color); }
+    &--info::before { background-color: var(--tk-info-color); }
+
+    &--active {
+      border-color: var(--tk-primary-color);
+      box-shadow: 0 0 0 1px var(--tk-primary-color-border);
+    }
+  }
+
+  &__label {
+    font-family: var(--tk-font-mono, monospace);
+    font-size: var(--tk-font-size-xs);
+    font-weight: var(--tk-font-weight-medium);
+    color: var(--tk-text-secondary);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  &__value {
+    font-family: var(--tk-font-display, var(--tk-font-mono, monospace));
+    font-size: var(--tk-font-size-xl);
+    font-weight: var(--tk-font-weight-bold);
+    color: var(--tk-text-primary);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+}
+
+.tk-asset-mono {
+  font-family: var(--tk-font-mono, monospace);
+  font-size: var(--tk-font-size-xs);
+  color: var(--tk-text-regular);
+  font-variant-numeric: tabular-nums;
+}
+
+.tk-asset-name-link {
+  font-weight: var(--tk-font-weight-medium);
+  padding: 0;
+}
+
+.tk-asset-labels {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.tk-asset-label {
+  font-size: var(--tk-font-size-xs);
+}
+
+.tk-asset-labels-empty {
+  color: var(--tk-text-placeholder);
+  font-size: var(--tk-font-size-sm);
+}
+
+@media (max-width: 1023px) {
+  .tk-asset-summary {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 639px) {
+  .tk-asset-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+</style>

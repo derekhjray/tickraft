@@ -1,0 +1,74 @@
+// Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Dual-licensed — see LICENSE for details.
+
+// Typography design tokens
+// Aligned with the prototype tokens.css typography system
+// (Tickraft Design System v2.1 "Signal Observatory")
+// Three-voice typography: Sora (display) + Hanken Grotesk (body) +
+// JetBrains Mono (mono). Refined kerning + tabular numbers for data.
+:root {
+  // ===== Font families =====
+  --tk-font-display: 'Sora', 'PingFang SC', 'Helvetica Neue', sans-serif;
+  --tk-font-body: 'Hanken Grotesk', 'PingFang SC', 'Helvetica Neue', helvetica,
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --tk-font-mono: 'JetBrains Mono', 'SFMono-Regular', menlo, monaco, consolas,
+    'Liberation Mono', monospace;
+
+  // App-specific aliases (components reference these)
+  --tk-font-family: var(--tk-font-body);
+  --tk-font-family-mono: var(--tk-font-mono);
+
+  // ===== Font feature settings =====
+  --tk-font-features-display: 'kern' 1, 'liga' 1, 'calt' 1, 'ss01' 1;
+  --tk-font-features-body: 'kern' 1, 'liga' 1, 'calt' 1;
+  --tk-font-features-mono: 'kern' 1, 'liga' 0, 'calt' 0, 'tnum' 1, 'zero' 1;
+
+  // ===== Font sizes (16px base for body, 14px for dense tables) =====
+  --tk-font-size-xs: 11px;
+  --tk-font-size-sm: 12px;
+  --tk-font-size-base: 13px;
+  --tk-font-size-md: 14px;
+  --tk-font-size-lg: 16px;
+  --tk-font-size-xl: 18px;
+  --tk-font-size-2xl: 22px;
+  --tk-font-size-3xl: 26px;
+  --tk-font-size-4xl: 32px;
+  --tk-font-size-5xl: 42px;
+  --tk-font-size-6xl: 56px;
+
+  // App-specific composite text tokens (size + line-height + letter-spacing)
+  --tk-text-xs--line-height: 16px;
+  --tk-text-xs--letter-spacing: 0.02em;
+  --tk-text-sm--line-height: 18px;
+  --tk-text-base--line-height: 20px;
+  --tk-text-lg--line-height: 24px;
+  --tk-text-xl--line-height: 28px;
+  --tk-text-2xl--line-height: 30px;
+  --tk-text-3xl--line-height: 34px;
+  --tk-text-4xl--line-height: 40px;
+  --tk-text-5xl--line-height: 52px;
+
+  // ===== Font weights =====
+  --tk-font-weight-regular: 400;
+  --tk-font-weight-medium: 500;
+  --tk-font-weight-semibold: 600;
+  --tk-font-weight-bold: 700;
+  --tk-font-weight-extrabold: 800;
+
+  // App-specific alias (components reference --tk-font-weight-normal)
+  --tk-font-weight-normal: var(--tk-font-weight-regular);
+
+  // ===== Line heights =====
+  --tk-line-height-tight: 1.15;
+  --tk-line-height-snug: 1.3;
+  --tk-line-height-normal: 1.5;
+  --tk-line-height-relaxed: 1.7;
+
+  // ===== Letter spacing =====
+  --tk-letter-tight: -0.02em;
+  --tk-letter-normal: 0;
+  --tk-letter-wide: 0.01em;
+  --tk-letter-wider: 0.04em;
+  --tk-letter-widest: 0.08em;
+}

@@ -1,0 +1,25 @@
+<!--
+  Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+  Dual-licensed — see LICENSE for details.
+-->
+
+<!DOCTYPE html>
+<html lang="zh-Hans" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Fonts are self-hosted under /fonts/ (see packages/core/src/styles/_fonts.scss).
+         Preload the first-paint critical subsets: Sora (display/headings) and
+         Hanken Grotesk (body). Both are variable woff2 files covering the full
+         weight range, so a single preload per family suffices. -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/Sora-latin.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/HankenGrotesk-latin.woff2" />
+    <title>Tickraft</title>
+  </head>
+  <body>
+    <div id="app" class="tk-app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

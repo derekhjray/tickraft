@@ -1,0 +1,33 @@
+{
+  "dashboard": "Dashboard",
+  "asset": {
+    "title": "Assets"
+  },
+  "task": {
+    "title": "Task Scheduling",
+    "task": "Task Management",
+    "log": "Execution Logs",
+    "template": "Task Templates",
+    "node": "Task Nodes"
+  },
+  "telemetry": {
+    "title": "Monitoring"
+  },
+  "prism": {
+    "title": "Alerts",
+    "record": "Alert Records",
+    "rule": "Alert Rules"
+  },
+  "system": {
+    "title": "System Settings",
+    "basic": "General Settings",
+    "data": "Data Maintenance",
+    "profile": "Profile",
+    "license": "License Info",
+    "subscription": "Subscription & Billing",
+    "subscription_service": "Subscription & Service",
+    "quota": "Quota Management",
+    "about": "About",
+    "info": "System Info"
+  }
+}

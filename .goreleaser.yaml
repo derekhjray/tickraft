@@ -1,0 +1,45 @@
+# Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Dual-licensed — see LICENSE for details.
+
+project_name: tickraft
+
+builds:
+  - id: tickraft
+    main: ./cmd/tickraft
+    binary: tickraft
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -X github.com/tickraft/tickraft/internal/cli.version={{.Version}}
+      - -X github.com/tickraft/tickraft/internal/cli.gitCommit={{.Commit}}
+      - -X github.com/tickraft/tickraft/internal/cli.buildTime={{.Date}}
+      - -X github.com/tickraft/tickraft/internal/cli.buildTags=
+
+archives:
+  - id: tickraft
+    builds:
+      - tickraft
+    name_template: "{{ .ProjectName }}-ce_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^style:'
+      - '^ci:'
+      - Merge pull request
+      - Merge branch

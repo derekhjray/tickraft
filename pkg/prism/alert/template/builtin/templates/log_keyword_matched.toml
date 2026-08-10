@@ -1,0 +1,27 @@
+# Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Dual-licensed — see LICENSE for details.
+
+id = "log_keyword_matched"
+name = "Log Keyword Matched"
+description = "Fires when a configured keyword is matched in incoming log entries"
+alert_type = "log"
+variables = ["keyword", "content", "source_ip", "level"]
+styles = ["concise", "detailed", "technical"]
+channel_hints = ["email", "sms", "im"]
+
+[translations.en-US]
+"title.concise" = "Alert: log keyword \"{{.keyword}}\""
+"title.detailed" = "Log keyword \"{{.keyword}}\" matched"
+"title.technical" = "ALERT[log] keyword={{.keyword}}"
+"description.concise" = "Keyword {{.keyword}} in log"
+"description.detailed" = "Log entry from {{.source_ip}} matched keyword \"{{.keyword}}\" (level: {{.level}}): {{.content}}"
+"description.technical" = "keyword={{.keyword}} source={{.source_ip}} level={{.level}}"
+
+[translations.zh-Hans]
+"title.concise" = "告警：日志关键词 \"{{.keyword}}\""
+"title.detailed" = "日志关键词 \"{{.keyword}}\" 命中"
+"title.technical" = "ALERT[log] keyword={{.keyword}}"
+"description.concise" = "日志中命中关键词 {{.keyword}}"
+"description.detailed" = "来自 {{.source_ip}} 的日志命中关键词 \"{{.keyword}}\"（级别：{{.level}}）：{{.content}}"
+"description.technical" = "keyword={{.keyword}} source={{.source_ip}} level={{.level}}"

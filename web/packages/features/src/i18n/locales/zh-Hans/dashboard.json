@@ -1,0 +1,13 @@
+{
+  "upgrade": {
+    "title": "升级到专业版",
+    "description": "解锁 SSH/MySQL/Redis 执行器、DNS/SSL 证书探测、多用户协作、审计日志与多通知渠道等高级能力，获取更强大的运维自动化体验。",
+    "featureSshExecutor": "SSH/MySQL/Redis 执行器",
+    "featureDbExecutor": "数据库与缓存执行",
+    "featureAdvancedProber": "DNS/SSL 证书探测",
+    "featureMultiUser": "多用户与角色权限",
+    "featureAuditLog": "操作审计日志",
+    "featureMultiChannel": "邮件/短信/钉钉/飞书通知",
+    "cta": "了解专业版"
+  }
+}

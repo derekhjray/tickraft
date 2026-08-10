@@ -1,0 +1,101 @@
+// Copyright © 2026 Beijing Ruishuo Technology Co., Ltd.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Dual-licensed — see LICENSE for details.
+
+// Light theme application layer
+// Aligned with the prototype theme-light.css
+// All light-mode CSS variables are defined as defaults in _color.scss under
+// :root (the "Signal Observatory" light palette); this file only handles the
+// explicit [data-theme='light'] switch: body paint, themed scrollbar,
+// selection color, and the light-specific component tweaks.
+[data-theme='light'] body {
+  color: var(--tk-text-primary);
+  background-color: var(--tk-bg-canvas);
+  text-rendering: optimizelegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// ===== Scrollbar (light, thin, unobtrusive) =====
+[data-theme='light'] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme='light'] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-theme='light'] ::-webkit-scrollbar-thumb {
+  background-color: rgb(15 23 42 / 15%);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: var(--tk-radius-round);
+}
+
+[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(15 23 42 / 28%);
+}
+
+[data-theme='light'] ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+// Firefox: thin, themed
+[data-theme='light'] * {
+  scrollbar-color: rgb(15 23 42 / 18%) transparent;
+  scrollbar-width: thin;
+}
+
+// ===== Selection color =====
+[data-theme='light'] ::selection {
+  color: var(--tk-text-primary);
+  background: rgb(59 91 246 / 22%);
+}
+
+[data-theme='light'] ::selection {
+  color: var(--tk-text-primary);
+  background: rgb(59 91 246 / 22%);
+}
+
+// ===== Light-specific component adjustments =====
+
+// Hero wash for marketing/empty states (reads as "airy" in light mode).
+[data-theme='light'] .tk-hero-wash {
+  background: var(--tk-gradient-hero);
+}
+
+// Code blocks: hair-lighter surface so they don't compete with white cards.
+[data-theme='light'] .tk-code-block {
+  background-color: #f6f8fa;
+  border-color: var(--tk-border-color-light);
+}
+
+// Skeleton shimmer is brighter in light mode (white sweep).
+[data-theme='light'] .tk-skeleton::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(255 255 255 / 65%) 50%,
+    transparent 100%
+  );
+}
+
+// Images/logos render at full brightness in light mode.
+[data-theme='light'] img[data-theme-dim] {
+  filter: none;
+}
+
+// Topbar glass: faint white wash in light mode.
+[data-theme='light'] .tk-topbar {
+  background: rgb(255 255 255 / 82%);
+  backdrop-filter: saturate(180%) blur(12px);
+  backdrop-filter: saturate(180%) blur(12px);
+}
+
+// Focus ring: lighter halo on white surfaces for AA contrast.
+[data-theme='light'] :focus-visible {
+  outline: 2px solid var(--tk-primary-color);
+  outline-offset: 2px;
+  box-shadow: var(--tk-shadow-focus);
+}
