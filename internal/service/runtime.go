@@ -24,7 +24,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"gorm.io/gorm"
 
-	"github.com/tickraft/tickraft/internal/remediation"
+	"github.com/tickraft/tickraft/internal/quota"
 	"github.com/tickraft/tickraft/pkg/asset"
 	"github.com/tickraft/tickraft/pkg/auth"
 	"github.com/tickraft/tickraft/pkg/auth/jwt"
@@ -34,10 +34,7 @@ import (
 	"github.com/tickraft/tickraft/pkg/errdefs"
 	"github.com/tickraft/tickraft/pkg/event"
 	"github.com/tickraft/tickraft/pkg/i18n"
-	"github.com/tickraft/tickraft/pkg/prism/alert"
-	"github.com/tickraft/tickraft/pkg/prism/channel"
-	premed "github.com/tickraft/tickraft/pkg/prism/remediation"
-	"github.com/tickraft/tickraft/pkg/prism/rule"
+	"github.com/tickraft/tickraft/pkg/prism"
 	"github.com/tickraft/tickraft/pkg/task"
 	"github.com/tickraft/tickraft/pkg/telemetry"
 	"github.com/tickraft/tickraft/pkg/user"
@@ -83,32 +80,17 @@ type runtime struct {
 	cache  *cache.LRUCache
 	bus    event.Bus
 	authz  *auth.Service
-	jwtMgr *jwt.JWT
+	jwt    *jwt.JWT
 
 	// assetStore is the asset persistence store, created once and
 	// shared between the telemetry manager, asset management API, and
 	// the asset-key middleware getter.
 	assetStore asset.Store
 
-	// Alert-related resources created by startPrismEngine and consumed by
-	// startAPIServer when wiring the alert service into the API routes.
-	alertEngine      *alert.Engine
-	ruleEngine       *rule.Engine
-	ruleStore        *rule.Store
-	alertRecordStore alert.RecordStore
-
-	// channelStore is the notification channel persistence store, created
-	// by startPrismEngine and consumed by startAPIServer when wiring the
-	// channel service into the API routes. It persists channel definitions
-	// managed through the CRUD API at /api/v1/prism/channels.
-	channelStore *channel.Store
-
-	// remediationRuleStore is the self-healing rule persistence store,
-	// created by startPrismEngine and consumed by startAPIServer when
-	// wiring the remediation rule service into the API routes. It persists
-	// remediation rule definitions managed through the CRUD API at
-	// /api/v1/prism/remediation/rules.
-	remediationRuleStore *premed.Store
+	// Alert-related resources: the prismEngine is created by
+	// startPrismEngine and stores are accessed via accessor methods
+	// (RuleStore, RecordStore, ChannelStore, RemediationStore, RuleEngine).
+	prismEngine *prism.Engine
 
 	// Scheduler-related resources created by startWorkerEngines and consumed
 	// by startAPIServer when wiring the task service into the API routes.
@@ -133,6 +115,18 @@ type runtime struct {
 	// started (e.g. isolated tests).
 	telemetryCollector telemetry.Collector
 
+	// metricStore and logStore persist collected metrics and logs. They are
+	// created by startWorkerEngines and consumed by startAPIServer to wire
+	// the telemetry handler's history/logs endpoints.
+	metricStore telemetry.MetricStore
+	logStore    telemetry.LogStore
+
+	// proberSvc coordinates active probing. It is created by
+	// startWorkerEngines and consumed by startAPIServer to wire
+	// register/unregister hooks into the telemetry CRUD service so that
+	// active monitoring points are scheduled in real time.
+	proberSvc *telemetry.ProberService
+
 	// implicitAccount is the in-memory account that backs the built-in admin
 	// user. It is never persisted to the database: the runtime has a single
 	// admin user who is treated as the owner of an implicit personal account
@@ -149,9 +143,18 @@ func (r *runtime) ImplicitAccount() *account {
 }
 
 // eventBus returns the shared event bus, creating it lazily on first use.
+// The bus is configured with a GORM-backed FailedEventStore so events that
+// exhaust all retries are persisted to the database for audit and replay.
 func (r *runtime) eventBus() event.Bus {
 	if r.bus == nil {
-		r.bus = event.NewBus()
+		failedStore := event.NewFailedEventStore(r.dbc)
+		if err := failedStore.Migrate(context.Background()); err != nil {
+			r.logger.Error("migrate failed event store", zap.Error(err))
+		}
+		r.bus = event.NewBus(
+			event.WithFailedEventStore(failedStore),
+			event.WithLogger(r.logger),
+		)
 	}
 	return r.bus
 }
@@ -200,6 +203,10 @@ func initRuntime(ctx context.Context, cfg *config.Config) (*runtime, error) {
 	defer func() { _ = logger.Sync() }()
 	zap.ReplaceGlobals(logger)
 
+	// Register the CE default quota Provider before any component that
+	// may query quota ceilings is initialized.
+	quota.Register()
+
 	// Resolve the database configuration via ResolveDBConfig so both the DSN
 	// path (database.dsn) and the direct-fields path (database.driver,
 	// database.address, database.credential, database.params) are supported.
@@ -216,14 +223,9 @@ func initRuntime(ctx context.Context, cfg *config.Config) (*runtime, error) {
 
 	cacheInst := cache.NewLRU(1024, 5*time.Minute)
 
-	if err := db.AutoMigrate(ctx, dbc); err != nil {
+	if err = db.AutoMigrate(ctx, dbc); err != nil {
 		closeRuntimeDB(dbc, cacheInst)
 		return nil, fmt.Errorf("auto migrate: %w", err)
-	}
-
-	if err := remediation.Migrate(ctx, dbc); err != nil {
-		closeRuntimeDB(dbc, cacheInst)
-		return nil, fmt.Errorf("migrate remediation: %w", err)
 	}
 
 	// Ensure the built-in admin user exists.
@@ -233,9 +235,15 @@ func initRuntime(ctx context.Context, cfg *config.Config) (*runtime, error) {
 		return nil, fmt.Errorf("ensure admin user: %w", err)
 	}
 	if adminPassword != "" {
-		logger.Warn("generated random admin password; please change it after first login",
+		// Print the initial password to stderr so the operator can
+		// see it in the terminal or systemd journal without it being
+		// persisted in structured log files.
+		fmt.Fprintf(os.Stderr,
+			"[security] Generated random admin password for user %q: %s\n",
+			cfg.Auth.AdminUsername, adminPassword)
+		fmt.Fprintln(os.Stderr, "[security] Please change it immediately after first login.")
+		logger.Warn("generated random admin password; change it after first login",
 			zap.String("username", cfg.Auth.AdminUsername),
-			zap.String("password", adminPassword),
 		)
 	}
 
@@ -256,7 +264,7 @@ func initRuntime(ctx context.Context, cfg *config.Config) (*runtime, error) {
 	// telemetry manager, asset management API, and asset-key
 	// middleware getter. The asset table migration is idempotent.
 	assetStore := asset.NewStore(dbc)
-	if err := assetStore.Migrate(ctx); err != nil {
+	if err = assetStore.Migrate(ctx); err != nil {
 		closeRuntimeDB(dbc, cacheInst)
 		return nil, fmt.Errorf("migrate asset store: %w", err)
 	}
@@ -267,7 +275,7 @@ func initRuntime(ctx context.Context, cfg *config.Config) (*runtime, error) {
 	// to an empty default-locale bundle so alerts still render.
 	i18nRegistry := i18n.NewRegistry(logger)
 	i18nLoader := i18n.NewLoader(logger)
-	if err := i18nLoader.LoadToRegistry(i18n.EmbeddedFS(), i18nRegistry); err != nil {
+	if err = i18nLoader.LoadToRegistry(i18n.EmbeddedFS(), i18nRegistry); err != nil {
 		logger.Warn("init runtime: failed to load i18n resources, falling back to default locale",
 			zap.Error(err))
 	}
@@ -307,7 +315,7 @@ func closeRuntimeDB(dbc *gorm.DB, cacheInst *cache.LRUCache) {
 
 // initAuth initializes the JWT manager and auth service. The auth services
 // are stored on the runtime.
-func initAuth(ctx context.Context, rt *runtime) error {
+func initAuth(_ context.Context, rt *runtime) error {
 	jwtSecret := rt.cfg.Auth.JWTSecret
 	if jwtSecret == "" {
 		jwtSecret = os.Getenv("TICKRAFT_JWT_SECRET")
@@ -334,7 +342,7 @@ func initAuth(ctx context.Context, rt *runtime) error {
 	apiKeyStore := user.NewAPIKeyStore(rt.dbc, rt.cache)
 	authz := auth.NewService(jwtMgr, userStore, apiKeyStore, blacklistStore)
 
-	rt.jwtMgr = jwtMgr
+	rt.jwt = jwtMgr
 	rt.authz = authz
 	return nil
 }

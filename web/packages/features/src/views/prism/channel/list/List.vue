@@ -6,12 +6,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import {
-  DataTable,
-  ConfirmDialog,
-  useTable,
-  formatDate,
-} from '@tickraft/core'
+import { DataTable, ConfirmDialog, useTable, formatDate, usePermission } from '@tickraft/core'
 import {
   getChannels,
   deleteChannel,
@@ -22,6 +17,7 @@ import PrismPageHeader from '../../components/PrismPageHeader.vue'
 import ChannelForm from '../components/ChannelForm.vue'
 
 const { t } = useI18n()
+const { canDelete } = usePermission()
 
 /** Drawer state */
 const formVisible = ref(false)
@@ -188,7 +184,7 @@ onMounted(() => {
       <!-- Type column: badge showing channel type -->
       <template #type="{ row }">
         <el-tag
-          type="primary"
+          :type="(row as NotificationChannel).type === 'email' ? 'warning' : 'primary'"
           effect="light"
         >
           {{ t(`prism.channel.type.${(row as NotificationChannel).type}`) }}
@@ -238,6 +234,7 @@ onMounted(() => {
               {{ t('prism.channel.list.test') }}
             </el-button>
             <el-button
+              v-if="canDelete('*')"
               link
               type="danger"
               @click="handleDeleteClick(row as NotificationChannel)"

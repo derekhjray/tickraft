@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/tickraft/tickraft/pkg/cron"
 	"github.com/tickraft/tickraft/pkg/event"
+	"github.com/tickraft/tickraft/pkg/quota"
 	"github.com/tickraft/tickraft/pkg/scheduler"
 	"go.uber.org/zap"
 )
@@ -201,6 +203,9 @@ const metaKeyEnabledFlag = "enabled"
 // registers a timed callback with the engine.
 func (m *Service) Register(ctx context.Context, task Task) error {
 	scheduleType, cronExpr, interval := extractScheduleConfig(task)
+	if err := checkMinInterval(scheduleType, interval); err != nil {
+		return fmt.Errorf("register task %d: %w", task.ID, err)
+	}
 	sched, err := parseSchedule(scheduleType, cronExpr, interval)
 	if err != nil {
 		return fmt.Errorf("register task %d: %w", task.ID, err)
@@ -288,6 +293,15 @@ func (m *Service) Pause(taskID int64) error {
 	}
 
 	m.unscheduleInternal(taskID)
+
+	// Drop the in-memory schedule registration. unscheduleInternal only
+	// removes the task from the engine wheel; without this delete the
+	// scheds entry survives and Resume's onWheel guard rejects every
+	// resume with ErrTaskNotPaused.
+	m.mu.Lock()
+	delete(m.scheds, taskID)
+	delete(m.scheduleTypes, taskID)
+	m.mu.Unlock()
 
 	if task.Metadata == nil {
 		task.Metadata = make(map[string]string)
@@ -468,6 +482,25 @@ func (m *Service) releaseRunning(taskID int64) {
 	m.runningMu.Lock()
 	delete(m.running, taskID)
 	m.runningMu.Unlock()
+}
+
+// checkMinInterval validates that interval-based schedules respect the
+// quota-imposed minimum interval. It queries pkg/quota.Ceiling at check
+// time so dynamic plan changes take effect immediately. Non-interval
+// schedule types always pass.
+func checkMinInterval(scheduleType ScheduleType, interval time.Duration) error {
+	if scheduleType != ScheduleTypeInterval {
+		return nil
+	}
+	minSecs := quota.Ceiling(quota.TypeScheduledTaskInterval)
+	if minSecs <= 0 {
+		return nil
+	}
+	minInterval := time.Duration(minSecs) * time.Second
+	if interval > 0 && interval < minInterval {
+		return fmt.Errorf("%w: got %s, minimum %s", ErrIntervalTooSmall, interval, minInterval)
+	}
+	return nil
 }
 
 // unscheduleInternal removes a task from the engine without deleting it

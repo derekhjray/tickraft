@@ -47,11 +47,23 @@ export interface AlertRule {
 /** Alert rule create/edit payload */
 export type AlertRulePayload = Omit<AlertRule, 'id' | 'createdAt' | 'updatedAt'>
 
+/** Alert record list query parameters (server-side filtering) */
+export interface AlertRecordListParams extends PageParams {
+  /** Severity filter: info / warning / critical */
+  severity?: string
+  /** Status filter: firing / acknowledged / resolved */
+  status?: string
+  /** Range start (RFC3339) */
+  from?: string
+  /** Range end (RFC3339) */
+  to?: string
+}
+
 /**
- * Fetch alert record list (backend only supports page/size pagination)
+ * Fetch alert record list (server-side severity/status/time filtering)
  */
 export function getAlertRecords(
-  params: PageParams,
+  params: AlertRecordListParams,
 ): Promise<PageData<AlertRecord>> {
   return request<PageData<AlertRecord>>({
     url: '/prism/alert/records',
@@ -148,8 +160,8 @@ export function deleteAlertRule(id: number): Promise<void> {
 
 // ── Notification channels ──
 
-/** Notification channel type (CE supports "webhook"; extensible via SPI) */
-export type ChannelType = 'webhook' | string
+/** Notification channel type (supports "webhook" and "email"; extensible via SPI) */
+export type ChannelType = 'webhook' | 'email' | string
 
 /** Webhook channel configuration (stored as JSON in NotificationChannel.config) */
 export interface WebhookConfig {
@@ -161,6 +173,29 @@ export interface WebhookConfig {
   timeout: string
   /** Custom HTTP headers */
   headers: Record<string, string>
+}
+
+/** Email channel configuration (stored as JSON in NotificationChannel.config).
+ *  Field names use snake_case to align with the backend channel.Config JSON tags. */
+export interface EmailConfig {
+  /** SMTP server hostname */
+  host: string
+  /** SMTP server port (25, 465 for implicit TLS, 587 for STARTTLS) */
+  port: number
+  /** SMTP authentication username */
+  username: string
+  /** SMTP authentication password */
+  password: string
+  /** Sender email address */
+  from: string
+  /** Recipient email addresses */
+  to: string[]
+  /** TLS mode: none, implicit, starttls */
+  tls_mode: string
+  /** Auth type: plain, login, cram-md5 */
+  auth_type: string
+  /** Send as HTML email */
+  html_mode: boolean
 }
 
 /** Notification channel (aligned with backend handler.NotificationChannel) */
@@ -260,11 +295,11 @@ export function testChannel(id: number): Promise<void> {
 
 // ── Remediation rules ──
 
-/** Remediation rule executor type (CE supports "webhook" and "http"; extensible via SPI) */
-export type RemediationExecutorType = 'webhook' | 'http' | string
+/** Remediation rule executor type (CE supports "local", "webhook" and "http"; extensible via SPI) */
+export type RemediationExecutorType = 'local' | 'webhook' | 'http' | string
 
-/** Remediation rule trigger event type (CE supports alert.firing / alert.critical) */
-export type RemediationTriggerType = 'alert.firing' | 'alert.critical' | string
+/** Remediation rule trigger event type (CE supports metric / log / status_change) */
+export type RemediationTriggerType = 'metric' | 'log' | 'status_change' | string
 
 /** Remediation rule (aligned with backend handler.RemediationRule) */
 export interface RemediationRule {
@@ -377,5 +412,45 @@ export function deleteRemediationRule(id: number): Promise<void> {
   return request<void>({
     url: `/prism/remediation/rules/${id}`,
     method: 'delete',
+  })
+}
+
+// ── Remediation records ──
+
+/**
+ * Remediation dispatch record (aligned with backend handler.RemediationRecord).
+ * One record is persisted per run and updated through the
+ * triggered -> started -> completed/failed lifecycle.
+ */
+export interface RemediationRecord {
+  id: number
+  ruleId: number
+  ruleName: string
+  assetId: number
+  assetKey?: string
+  runId: string
+  /** Trigger type: metric / log / status_change */
+  trigger: string
+  /** Lifecycle status: triggered / started / completed / skipped / failed */
+  status: string
+  error?: string
+  startedAt?: string | null
+  finishedAt?: string | null
+  createdAt: string
+}
+
+/** Remediation record list query parameters (status is optional) */
+export type RemediationRecordListParams = PageParams & { status?: string }
+
+/**
+ * Fetch remediation dispatch records (paginated)
+ */
+export function getRemediationRecords(
+  params: RemediationRecordListParams,
+): Promise<PageData<RemediationRecord>> {
+  return request<PageData<RemediationRecord>>({
+    url: '/prism/remediation/records',
+    method: 'get',
+    params,
   })
 }

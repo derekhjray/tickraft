@@ -62,6 +62,10 @@ type subscriber struct {
 type queueItem struct {
 	envelope *Envelope
 	seq      uint64
+	// ctx preserves the publisher's context so the consumer loop
+	// delivers the event with the publisher's deadline/cancellation
+	// rather than a detached context.Background().
+	ctx context.Context
 }
 
 // priorityQueue implements heap.Interface, ordering by Priority descending;
@@ -208,6 +212,7 @@ func (b *channelBus) Publish(ctx context.Context, eventType Type, payload any, o
 	heap.Push(&tq.pq, &queueItem{
 		envelope: env,
 		seq:      b.seq.Add(1),
+		ctx:      ctx,
 	})
 	tq.mu.Unlock()
 
@@ -349,7 +354,11 @@ func (b *channelBus) drainQueue(tq *typeQueue, eventType Type) {
 		tq.mu.Unlock()
 
 		env := item.envelope
-		b.dispatch(context.Background(), eventType, *env)
+		if item.ctx != nil {
+			b.dispatch(item.ctx, eventType, *env)
+		} else {
+			b.dispatch(context.Background(), eventType, *env)
+		}
 		releaseEnvelope(env)
 	}
 }
@@ -423,7 +432,7 @@ func (b *channelBus) callHandler(ctx context.Context, sub *subscriber, eventType
 
 		callCtx, cancel := context.WithTimeout(ctx, timeout)
 		start := time.Now()
-		err := b.safeCall(callCtx, sub, eventType, env)
+		err := b.call(callCtx, sub, eventType, env)
 		cancel()
 		elapsed := time.Since(start)
 		b.instrumenter.ObserveHandlerDuration(eventType, sub.id, elapsed)
@@ -452,8 +461,8 @@ func (b *channelBus) callHandler(ctx context.Context, sub *subscriber, eventType
 	b.handleFailedEvent(eventType, env, lastErr)
 }
 
-// safeCall invokes the Handler safely, recovering from panics and recording metrics and logs.
-func (b *channelBus) safeCall(ctx context.Context, sub *subscriber, eventType Type, env Envelope) (err error) {
+// call invokes the Handler safely, recovering from panics and recording metrics and logs.
+func (b *channelBus) call(ctx context.Context, sub *subscriber, eventType Type, env Envelope) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			b.instrumenter.IncHandlerPanic(eventType, sub.id)

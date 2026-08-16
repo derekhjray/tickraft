@@ -5,11 +5,11 @@
 package prism
 
 import (
+	"go.uber.org/zap"
+
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/tickraft/tickraft/pkg/api/handler"
 	"github.com/tickraft/tickraft/pkg/api/handler/alert"
@@ -73,8 +73,12 @@ func (s *AlertService) CreateRule(ctx context.Context, req *alert.Rule) (*alert.
 	if err := s.ruleStore.Create(ctx, m); err != nil {
 		return nil, mapRuleStoreError(err)
 	}
-	// best-effort: rule persisted; reload failure is logged by the engine
-	_ = s.reloadRules(ctx)
+	// best-effort: rule persisted; reload failure keeps the engine on
+	// the previous rule set, so log it rather than failing the request.
+	if err := s.reloadRules(ctx); err != nil {
+		zap.L().Warn("alert rule engine reload failed after create",
+			zap.Int64("rule_id", m.ID), zap.Error(err))
+	}
 	h := ruleModelToHandler(m)
 	return &h, nil
 }
@@ -94,8 +98,12 @@ func (s *AlertService) UpdateRule(ctx context.Context, id int64, req *alert.Rule
 	if err := s.ruleStore.Update(ctx, m); err != nil {
 		return nil, mapRuleStoreError(err)
 	}
-	// best-effort: rule updated; reload failure is logged by the engine
-	_ = s.reloadRules(ctx)
+	// best-effort: rule updated; reload failure keeps the engine on
+	// the previous rule set, so log it rather than failing the request.
+	if err := s.reloadRules(ctx); err != nil {
+		zap.L().Warn("alert rule engine reload failed after update",
+			zap.Int64("rule_id", m.ID), zap.Error(err))
+	}
 	h := ruleModelToHandler(m)
 	return &h, nil
 }
@@ -105,15 +113,26 @@ func (s *AlertService) DeleteRule(ctx context.Context, id int64) error {
 	if err := s.ruleStore.DeleteByID(ctx, id); err != nil {
 		return mapRuleStoreError(err)
 	}
-	// best-effort: rule deleted; reload failure is logged by the engine
-	_ = s.reloadRules(ctx)
+	// best-effort: rule deleted; reload failure keeps the engine on
+	// the previous rule set, so log it rather than failing the request.
+	if err := s.reloadRules(ctx); err != nil {
+		zap.L().Warn("alert rule engine reload failed after delete",
+			zap.Int64("rule_id", id), zap.Error(err))
+	}
 	return nil
 }
 
-// ListRecords returns a page of alert records and the total count.
-func (s *AlertService) ListRecords(ctx context.Context, page, size int) ([]alert.Record, int64, error) {
+// ListRecords returns a page of alert records matching the filter and the
+// total count.
+func (s *AlertService) ListRecords(ctx context.Context, page, size int, filter alert.RecordFilter) ([]alert.Record, int64, error) {
 	page, size = httputil.ClampPaging(page, size)
-	models, total, err := s.recordStore.List(ctx, page, size)
+	storeFilter := prismalert.RecordFilter{
+		Severity: filter.Severity,
+		Status:   filter.Status,
+		From:     filter.From,
+		To:       filter.To,
+	}
+	models, total, err := s.recordStore.List(ctx, page, size, storeFilter)
 	if err != nil {
 		return nil, 0, mapRecordStoreError(err)
 	}
@@ -238,57 +257,4 @@ func mapRecordStoreError(err error) error {
 		return handler.ErrRecordNotFound
 	}
 	return handler.NewServiceError(http.StatusInternalServerError, errdefs.CodeInternal, err.Error())
-}
-
-// RecordAlert creates alert records for each violation carried by the event.
-// It is intended as the OnAlert callback wired into the prism alert engine.
-// A nil recordStore makes the function a no-op so the callback is safe to
-// register even when record persistence is disabled.
-func RecordAlert(ctx context.Context, recordStore prismalert.RecordStore, evt prismalert.Event) error {
-	if recordStore == nil {
-		return nil
-	}
-	triggeredAt := evt.Timestamp
-	if triggeredAt.IsZero() {
-		triggeredAt = time.Now()
-	}
-	for _, v := range evt.Violations {
-		rec := violationToRecord(v, triggeredAt)
-		if err := recordStore.Create(ctx, rec); err != nil {
-			return fmt.Errorf("persist alert record: %w", err)
-		}
-	}
-	return nil
-}
-
-// violationToRecord builds a prismalert.Record from a single violation. The
-// rule name is derived from the metric name, log keyword, or violation source;
-// severity defaults to "warning" when empty.
-func violationToRecord(v prismalert.Violation, triggeredAt time.Time) *prismalert.Record {
-	severity := v.Severity
-	if severity == "" {
-		severity = "warning"
-	}
-	ruleName := v.Source
-	var value float64
-	if v.Metric != nil {
-		ruleName = v.Metric.Name
-		value = v.Metric.Value
-	}
-	if ruleName == "" && v.Log != nil {
-		ruleName = v.Log.Keyword
-	}
-	message := v.Message
-	if message == "" {
-		message = fmt.Sprintf("alert %s: %s", v.Kind, ruleName)
-	}
-	return &prismalert.Record{
-		RuleID:      0,
-		RuleName:    ruleName,
-		Severity:    severity,
-		Value:       value,
-		Message:     message,
-		Status:      "firing",
-		TriggeredAt: triggeredAt,
-	}
 }

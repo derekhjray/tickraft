@@ -38,6 +38,19 @@ func (s *recordStore) Create(ctx context.Context, m *Record) error {
 	return nil
 }
 
+// CreateBatch inserts multiple alert records in a single DB round-trip,
+// reducing per-violation INSERT overhead for events carrying multiple
+// violations. Empty slices are a no-op.
+func (s *recordStore) CreateBatch(ctx context.Context, models []*Record) error {
+	if len(models) == 0 {
+		return nil
+	}
+	if err := s.dbc.WithContext(ctx).CreateInBatches(models, 100).Error; err != nil {
+		return fmt.Errorf("alert: create records batch: %w", errmap.MapError(err))
+	}
+	return nil
+}
+
 // GetByID retrieves an alert record by its ID. Returns errdefs.ErrNotFound
 // when no record with the given ID exists.
 func (s *recordStore) GetByID(ctx context.Context, id int64) (*Record, error) {
@@ -48,9 +61,10 @@ func (s *recordStore) GetByID(ctx context.Context, id int64) (*Record, error) {
 	return &m, nil
 }
 
-// List returns a page of alert records ordered by descending ID, plus
-// the total count. page starts at 1; size is the maximum number of items.
-func (s *recordStore) List(ctx context.Context, page, size int) ([]*Record, int64, error) {
+// List returns a page of alert records matching the filter, ordered by
+// descending ID, plus the total count. page starts at 1; size is the maximum
+// number of items. A zero-value filter returns all records.
+func (s *recordStore) List(ctx context.Context, page, size int, filter RecordFilter) ([]*Record, int64, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -61,14 +75,28 @@ func (s *recordStore) List(ctx context.Context, page, size int) ([]*Record, int6
 		size = 100
 	}
 
+	query := s.dbc.WithContext(ctx).Model(&Record{})
+	if filter.Severity != "" {
+		query = query.Where("severity = ?", filter.Severity)
+	}
+	if filter.Status != "" {
+		query = query.Where("status = ?", filter.Status)
+	}
+	if !filter.From.IsZero() {
+		query = query.Where("triggered_at >= ?", filter.From)
+	}
+	if !filter.To.IsZero() {
+		query = query.Where("triggered_at <= ?", filter.To)
+	}
+
 	var total int64
-	if err := s.dbc.WithContext(ctx).Model(&Record{}).Count(&total).Error; err != nil {
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("alert: list records: %w", errmap.MapError(err))
 	}
 
 	var models []*Record
 	offset := (page - 1) * size
-	if err := s.dbc.WithContext(ctx).
+	if err := query.
 		Order("id DESC").
 		Offset(offset).
 		Limit(size).

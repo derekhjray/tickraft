@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	authcore "github.com/tickraft/tickraft/pkg/auth"
+	"github.com/tickraft/tickraft/pkg/auth"
 	"github.com/tickraft/tickraft/pkg/auth/jwt"
 	"github.com/tickraft/tickraft/pkg/auth/password"
 	"github.com/tickraft/tickraft/pkg/user"
@@ -19,7 +19,7 @@ import (
 type Authenticator interface {
 	// Login authenticates a user and returns a login result containing the
 	// token pair plus policy flags (e.g. MustChangePassword).
-	Login(ctx context.Context, username, password string) (*authcore.LoginResult, error)
+	Login(ctx context.Context, username, password string) (*auth.LoginResult, error)
 	// Verify validates a JWT token and returns the user.
 	Verify(ctx context.Context, token string) (*user.User, error)
 }
@@ -36,43 +36,35 @@ type Registrar interface {
 	Register(ctx context.Context, username, password, email string) (*user.User, error)
 }
 
-// Policy defines the permission checking strategy.
-// The default implementation provides an RBAC policy.
-type Policy interface {
-	// Check returns whether the user with the given role is allowed to
-	// perform the specified action on the asset type.
-	Check(role int, action string, assetType string) bool
-}
-
 // jwtAuthenticator implements Authenticator using JWT for token operations.
 type jwtAuthenticator struct {
 	users      user.Store
-	blacklist  authcore.BlacklistStore
-	jwtMgr     *jwt.JWT
+	jwt        *jwt.JWT
 	bcryptCost int
 }
 
 // NewAuthenticator creates a new Authenticator backed by the given stores
 // and JWT manager. bcryptCost of 0 means bcrypt.DefaultCost will be used.
-func NewAuthenticator(users user.Store, blacklist authcore.BlacklistStore, jwtMgr *jwt.JWT, bcryptCost int) Authenticator {
+// The blacklist parameter is retained for API compatibility but is not
+// used because the JWT instance already has a blacklist checker wired in.
+func NewAuthenticator(users user.Store, _ auth.BlacklistStore, jwtMgr *jwt.JWT, bcryptCost int) Authenticator {
 	return &jwtAuthenticator{
 		users:      users,
-		blacklist:  blacklist,
-		jwtMgr:     jwtMgr,
+		jwt:        jwtMgr,
 		bcryptCost: bcryptCost,
 	}
 }
 
 // Login authenticates a user by username and password, returning a login
 // result containing the token pair and policy flags on success.
-func (a *jwtAuthenticator) Login(ctx context.Context, username, pwd string) (*authcore.LoginResult, error) {
+func (a *jwtAuthenticator) Login(ctx context.Context, username, pwd string) (*auth.LoginResult, error) {
 	user, err := a.users.GetByUsername(ctx, username)
 	if err != nil {
-		return nil, authcore.ErrUnauthorized
+		return nil, auth.ErrUnauthorized
 	}
 
-	if err := password.Verify(user.PasswordHash, pwd); err != nil {
-		return nil, authcore.ErrUnauthorized
+	if err = password.Verify(user.PasswordHash, pwd); err != nil {
+		return nil, auth.ErrUnauthorized
 	}
 
 	// Build jwt.UserClaims from user data.
@@ -80,18 +72,18 @@ func (a *jwtAuthenticator) Login(ctx context.Context, username, pwd string) (*au
 	// The runtime is single-tenant; TenantID is left as the zero
 	// value. The extended User model embeds user.User and
 	// populates TenantID from its own augmented user type before issuing tokens.
-	jwtClaims := jwt.UserClaims{
+	claims := jwt.UserClaims{
 		UID:      user.ID,
 		Username: user.Username,
 		Role:     user.Role,
 	}
 
-	tokenPair, err := a.jwtMgr.GenerateTokenPair(jwtClaims)
+	tokenPair, err := a.jwt.GenerateTokenPair(claims)
 	if err != nil {
 		return nil, fmt.Errorf("auth: generate token pair: %w", err)
 	}
 
-	return &authcore.LoginResult{
+	return &auth.LoginResult{
 		TokenPair:          &jwt.TokenPair{AccessToken: tokenPair.AccessToken, RefreshToken: tokenPair.RefreshToken},
 		MustChangePassword: user.MustChangePassword,
 	}, nil
@@ -99,14 +91,14 @@ func (a *jwtAuthenticator) Login(ctx context.Context, username, pwd string) (*au
 
 // Verify validates a JWT token and returns the associated user.
 func (a *jwtAuthenticator) Verify(ctx context.Context, token string) (*user.User, error) {
-	claims, err := a.jwtMgr.ValidateToken(token, authcore.TokenTypeAccess)
+	claims, err := a.jwt.ValidateToken(token, auth.TokenTypeAccess)
 	if err != nil {
-		return nil, authcore.ErrUnauthorized
+		return nil, auth.ErrUnauthorized
 	}
 
 	user, err := a.users.GetByID(ctx, claims.UID)
 	if err != nil {
-		return nil, authcore.ErrUnauthorized
+		return nil, auth.ErrUnauthorized
 	}
 
 	return user, nil
@@ -130,9 +122,8 @@ func NewRegistrar(users user.Store, bcryptCost int) Registrar {
 // Register creates a new user.
 func (r *userRegistrar) Register(ctx context.Context, username, pwd, email string) (*user.User, error) {
 	// Check if username already exists
-	_, err := r.users.GetByUsername(ctx, username)
-	if err == nil {
-		return nil, authcore.ErrUserExists
+	if _, err := r.users.GetByUsername(ctx, username); err == nil {
+		return nil, auth.ErrUserExists
 	}
 
 	// Hash the password
@@ -143,7 +134,7 @@ func (r *userRegistrar) Register(ctx context.Context, username, pwd, email strin
 
 	// Create the user record
 	now := time.Now()
-	id, err := r.users.Create(ctx, username, hashedPwd, email, authcore.RoleDeveloper)
+	id, err := r.users.Create(ctx, username, hashedPwd, email, auth.RoleDeveloper)
 	if err != nil {
 		return nil, fmt.Errorf("auth: create user: %w", err)
 	}
@@ -152,72 +143,15 @@ func (r *userRegistrar) Register(ctx context.Context, username, pwd, email strin
 		ID:           id,
 		Username:     username,
 		PasswordHash: hashedPwd,
-		Role:         authcore.RoleDeveloper,
+		Role:         auth.RoleDeveloper,
 		Email:        email,
 		CreatedAt:    now,
 	}, nil
 }
 
-// rbacPolicy implements Policy with a role-based access control strategy.
-// admin: full access to all resources.
-// developer: read/write on tasks, devices, alerts; read on others.
-// visitor: read-only on all resources.
-type rbacPolicy struct {
-	// rules maps role -> assetType -> set of allowed actions.
-	rules map[int]map[string]map[string]bool
-}
-
-// newRBACPolicy creates the default RBAC policy.
-func newRBACPolicy() *rbacPolicy {
-	p := &rbacPolicy{
-		rules: make(map[int]map[string]map[string]bool),
-	}
-
-	// Admin: full access
-	p.rules[authcore.RoleAdmin] = map[string]map[string]bool{
-		"*": {authcore.ActionRead: true, authcore.ActionWrite: true, authcore.ActionDelete: true},
-	}
-
-	// Developer: manage tasks, devices, alerts; read others
-	devResources := map[string]map[string]bool{
-		"task":   {authcore.ActionRead: true, authcore.ActionWrite: true, authcore.ActionDelete: true},
-		"device": {authcore.ActionRead: true, authcore.ActionWrite: true, authcore.ActionDelete: false},
-		"alert":  {authcore.ActionRead: true, authcore.ActionWrite: true, authcore.ActionDelete: false},
-		"*":      {authcore.ActionRead: true, authcore.ActionWrite: false, authcore.ActionDelete: false},
-	}
-	p.rules[authcore.RoleDeveloper] = devResources
-
-	// Visitor: read-only
-	p.rules[authcore.RoleVisitor] = map[string]map[string]bool{
-		"*": {authcore.ActionRead: true, authcore.ActionWrite: false, authcore.ActionDelete: false},
-	}
-
-	return p
-}
-
-// Check returns whether the given role is allowed to perform the action on the asset type.
-func (p *rbacPolicy) Check(role int, action string, assetType string) bool {
-	resourceRules, ok := p.rules[role]
-	if !ok {
-		return false
-	}
-
-	// Check asset-specific rules first
-	if actions, found := resourceRules[assetType]; found {
-		return actions[action]
-	}
-
-	// Fall back to wildcard rules
-	if actions, found := resourceRules["*"]; found {
-		return actions[action]
-	}
-
-	return false
-}
-
 // rbacAuthorizer implements Authorizer using the built-in RBAC policy.
 type rbacAuthorizer struct {
-	policy Policy
+	policy auth.Policy
 }
 
 // NewAuthorizer creates a new Authorizer backed by the built-in RBAC policy.
@@ -225,7 +159,7 @@ type rbacAuthorizer struct {
 // permission checks are resolved by the default RBAC rules.
 func NewAuthorizer() Authorizer {
 	return &rbacAuthorizer{
-		policy: newRBACPolicy(),
+		policy: auth.DefaultPolicy(),
 	}
 }
 
@@ -236,9 +170,4 @@ func (a *rbacAuthorizer) Can(ctx context.Context, user *user.User, action string
 	}
 
 	return a.policy.Check(user.Role, action, assetType), nil
-}
-
-// DefaultPolicy returns the default RBAC policy.
-func DefaultPolicy() Policy {
-	return newRBACPolicy()
 }

@@ -7,6 +7,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -15,7 +16,8 @@ import (
 	"github.com/tickraft/tickraft/internal/api/router"
 	"github.com/tickraft/tickraft/internal/api/service/prism"
 	"github.com/tickraft/tickraft/internal/api/service/scheduler"
-	systemsvc "github.com/tickraft/tickraft/internal/api/service/system"
+	"github.com/tickraft/tickraft/internal/api/service/system"
+	telemetrysvc "github.com/tickraft/tickraft/internal/api/service/telemetry"
 	"github.com/tickraft/tickraft/internal/web"
 	"github.com/tickraft/tickraft/pkg/api"
 	"github.com/tickraft/tickraft/pkg/api/handler/asset"
@@ -24,6 +26,7 @@ import (
 	"github.com/tickraft/tickraft/pkg/api/handler/i18n"
 	"github.com/tickraft/tickraft/pkg/api/handler/readyz"
 	telemetryhandler "github.com/tickraft/tickraft/pkg/api/handler/telemetry"
+	wsHandler "github.com/tickraft/tickraft/pkg/api/handler/ws"
 	"github.com/tickraft/tickraft/pkg/auth"
 	"github.com/tickraft/tickraft/pkg/task"
 	"github.com/tickraft/tickraft/pkg/telemetry"
@@ -56,7 +59,7 @@ func startAPIServer(ctx context.Context, rt *runtime, errCh chan<- error) (stopF
 	// The Logger.Mode is passed as the API server's Mode to keep logger
 	// and server output format consistent.
 	sc := rt.cfg.Server
-	apiCfg := api.ServerConfig{
+	cfg := api.ServerConfig{
 		Addr:            sc.Addr,
 		Mode:            rt.cfg.Logger.Mode,
 		EnableCORS:      sc.EnableCORS,
@@ -79,8 +82,9 @@ func startAPIServer(ctx context.Context, rt *runtime, errCh chan<- error) (stopF
 			Domains:       append([]string(nil), sc.ACME.Domains...),
 		},
 	}
-	apiCfg.SetDefaults()
-	if err := apiCfg.Validate(); err != nil {
+
+	cfg.SetDefaults()
+	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("validate server tls config: %w", err)
 	}
 
@@ -92,13 +96,13 @@ func startAPIServer(ctx context.Context, rt *runtime, errCh chan<- error) (stopF
 	// logger rather than the default stderr-based hlog writer.
 	api.SetLogger(rt.logger)
 
-	srv := api.NewServer(apiCfg)
+	srv := api.NewServer(cfg)
 
 	// Build the asset-key getter from the asset store so that
 	// telemetry report endpoints can validate X-Tickraft-Asset-Key
 	// headers against existing resources.
-	assetKeyGetter := func(key string) (bool, error) {
-		return rt.assetStore.ExistsByKey(context.Background(), key)
+	assetKeyGetter := func(ctx context.Context, key string) (bool, error) {
+		return rt.assetStore.ExistsByKey(ctx, key)
 	}
 
 	// Build the RegisterOption list from the runtime's shared resources.
@@ -108,29 +112,32 @@ func startAPIServer(ctx context.Context, rt *runtime, errCh chan<- error) (stopF
 	// partial route surface.
 	var routeOpts []router.RegisterOption
 
-	// Alert service: backed by the rule engine and persistent stores.
-	// The prism engine must have been started by this point in standalone
-	// mode; nil stores indicate a startup order bug.
-	if rt.ruleStore == nil || rt.alertRecordStore == nil {
-		return nil, fmt.Errorf("start api server: alert rule/record stores are nil; prism engine may not have started")
+	// Alert service: backed by the rule engine and persistent stores
+	// accessed via the prism engine's accessor methods.
+	if rt.prismEngine == nil {
+		return nil, fmt.Errorf("start api server: prism engine is nil; prism engine may not have started")
 	}
-	alertSvc := prism.NewAlertService(rt.ruleStore, rt.alertRecordStore, rt.ruleEngine)
+	eng := rt.prismEngine
+	if eng.RuleStore() == nil || eng.RecordStore() == nil {
+		return nil, fmt.Errorf("start api server: prism rule/record stores are nil; prism engine may not have started")
+	}
+	alertSvc := prism.NewAlertService(eng.RuleStore(), eng.RecordStore(), eng.RuleEngine())
 	routeOpts = append(routeOpts, router.WithAlertService(alertSvc))
 
-	// Channel service: backed by the persistent channel store created by
-	// startPrismEngine. Must be non-nil in standalone mode.
-	if rt.channelStore == nil {
-		return nil, fmt.Errorf("start api server: channel store is nil; prism engine may not have started")
+	// Channel service: backed by the persistent channel store accessed
+	// via the prism engine.
+	if eng.ChannelStore() == nil {
+		return nil, fmt.Errorf("start api server: prism channel store is nil; prism engine may not have started")
 	}
-	channelSvc := prism.NewChannelService(rt.channelStore)
+	channelSvc := prism.NewChannelService(eng.ChannelStore(), eng)
 	routeOpts = append(routeOpts, router.WithChannelService(channelSvc))
 
 	// Remediation rule service: backed by the persistent remediation rule
-	// store created by startPrismEngine. Must be non-nil in standalone mode.
-	if rt.remediationRuleStore == nil {
-		return nil, fmt.Errorf("start api server: remediation rule store is nil; prism engine may not have started")
+	// store accessed via the prism engine.
+	if eng.RemediationStore() == nil {
+		return nil, fmt.Errorf("start api server: prism remediation store is nil; prism engine may not have started")
 	}
-	remediationRuleSvc := prism.NewRemediationService(rt.remediationRuleStore)
+	remediationRuleSvc := prism.NewRemediationService(eng.RemediationStore())
 	routeOpts = append(routeOpts, router.WithRemediationRuleService(remediationRuleSvc))
 
 	// Task service: backed by the scheduler engine and persistent task /
@@ -156,14 +163,29 @@ func startAPIServer(ctx context.Context, rt *runtime, errCh chan<- error) (stopF
 	assetH := asset.NewHandler(rt.assetStore, rt.logger)
 	routeOpts = append(routeOpts, router.WithAssetHandler(assetH))
 
-	// Telemetry service: provides the monitor CRUD API at
-	// /api/v1/telemetry/monitors. The default runtime injects an
-	// in-memory TelemetryService so the monitor endpoints are always
-	// registered and functional. A persistent implementation backed by
-	// the telemetry CollectionConfig table may be injected by callers
-	// to replace this stub via the same RouteOption.
-	telemetrySvc := telemetryhandler.NewMemoryService()
+	// Telemetry service: backed by the persistent MonitorStore (monitor_points
+	// table) created by the worker engines. All CRUD operations survive
+	// process restarts. Prober hooks are wired so active monitoring points
+	// are scheduled/unscheduled in real time through the ProberService.
+	monitorStore := telemetry.NewMonitorStore(rt.dbc)
+	var telemetryOpts []telemetrysvc.Option
+	if rt.proberSvc != nil {
+		telemetryOpts = append(telemetryOpts, telemetrysvc.WithPointHandlers(
+			func(ctx context.Context, point telemetry.MonitorPoint) error {
+				return rt.proberSvc.RegisterPoint(ctx, point)
+			},
+			func(ctx context.Context, pointID int64) error {
+				return rt.proberSvc.UnregisterPoint(ctx, pointID)
+			},
+		))
+	}
+	telemetrySvc := telemetrysvc.NewService(monitorStore, rt.logger, telemetryOpts...)
 	routeOpts = append(routeOpts, router.WithTelemetryService(telemetrySvc))
+
+	// Telemetry data stores: wire the metric and log stores (created by the
+	// worker engines) so the telemetry handler's history/logs endpoints
+	// query real persistent data instead of returning empty stubs.
+	routeOpts = append(routeOpts, router.WithTelemetryDataStores(rt.metricStore, rt.logStore))
 
 	// Telemetry report handler: wires the webhook listener to the telemetry
 	// collector so POST /api/v1/telemetry forwards received payloads into
@@ -217,20 +239,25 @@ func startAPIServer(ctx context.Context, rt *runtime, errCh chan<- error) (stopF
 		routeOpts = append(routeOpts, router.WithCertificateHandler(certHandler))
 	}
 
-	// Telemetry template handler: the template management API
-	// (/api/v1/telemetry/templates) is a optional capability.
-	// The default runtime does NOT inject the TemplateHandler; the
-	// handler file remains in pkg/api/handler/ (importable by callers)
-	// and the route is registered only when a TemplateHandler is injected
-	// via the WithTemplateHandler RouteOption. callers wires the
-	// template store, builtin template seeding, and handler injection in
-	// its own service startup (internal/service/server/api.go).
+	// Telemetry template handler: backed by the GORM template store,
+	// seeded on every startup with the CE built-in template set
+	// (icmp/tcp/http(s); LoadBuiltinTemplates is idempotent and removes
+	// any pro-only rows). Template CRUD and the apply endpoint are CE
+	// capabilities (docs/architecture/api-routing.md); the pro edition
+	// extends the same surface by injecting its own handler with the full
+	// (core + pro) built-in set.
+	templateStore := telemetry.NewTemplateStore(rt.dbc)
+	if err := telemetry.LoadBuiltinTemplates(rt.dbc); err != nil {
+		return nil, fmt.Errorf("load builtin telemetry templates: %w", err)
+	}
+	templateH := telemetryhandler.NewTemplateHandler(templateStore, telemetrySvc)
+	routeOpts = append(routeOpts, router.WithTemplateHandler(templateH))
 
 	// System service: backed by the database for config persistence,
 	// build-time metadata for version info, and the runtime's task /
 	// asset / execution stores for global stats. Always available when
 	// the runtime is initialized.
-	systemSvc := systemsvc.New(rt.dbc, rt.logger, rt.schedulerTaskStore, rt.schedulerExecStore, rt.assetStore)
+	systemSvc := system.New(rt.dbc, rt.logger, rt.schedulerTaskStore, rt.schedulerExecStore, rt.assetStore)
 	if err := systemSvc.Migrate(ctx); err != nil {
 		return nil, fmt.Errorf("migrate system service: %w", err)
 	}
@@ -246,7 +273,15 @@ func startAPIServer(ctx context.Context, rt *runtime, errCh chan<- error) (stopF
 		routeOpts = append(routeOpts, router.WithI18nHandler(i18nHandler))
 	}
 
-	if err := router.RegisterRoutes(srv, rt.jwtMgr, rt.authz, assetKeyGetter, routeOpts...); err != nil {
+	// WebSocket realtime push: subscribe to the shared event bus and
+	// register the /ws endpoint. Stopped together with the server.
+	wsH := wsHandler.NewHandler(rt.jwt, rt.eventBus(), rt.logger)
+	if err := wsH.Start(context.Background()); err != nil {
+		return nil, fmt.Errorf("start ws handler: %w", err)
+	}
+	routeOpts = append(routeOpts, router.WithWSHandler(wsH))
+
+	if err := router.RegisterRoutes(srv, rt.jwt, rt.authz, assetKeyGetter, routeOpts...); err != nil {
 		return nil, fmt.Errorf("register routes: %w", err)
 	}
 
@@ -262,12 +297,31 @@ func startAPIServer(ctx context.Context, rt *runtime, errCh chan<- error) (stopF
 		api.SetACMEProvider(http01)
 		srv.Group("").GET(api.HTTP01ChallengePath+":token", http01.Handler)
 
+		// File-backed ACME cert store so issued certificates and the ACME
+		// account key survive process restarts. The store writes the most
+		// recent certificate to server.crt.pem / server.key.pem; these paths
+		// are set on the server config so ReloadTLSConfig picks them up.
+		acmeDataDir := filepath.Join("data", "acme")
+		acmeCertStore, err := api.NewFileACMECertStore(acmeDataDir)
+		if err != nil {
+			return nil, fmt.Errorf("create acme cert store: %w", err)
+		}
+		cfg.TLSCertFile = acmeCertStore.ServerCertFile()
+		cfg.TLSKeyFile = acmeCertStore.ServerKeyFile()
+		// Rebuild the TLS config so the cert paths point at the ACME store.
+		if _, err := srv.ReloadTLSConfig(); err != nil {
+			// Pre-issuance: the cert files do not exist yet. This is
+			// expected on first start; the ACME loop will create them.
+			rt.logger.Debug("acme: initial tls reload deferred (no cert yet)", zap.Error(err))
+		}
+
 		acmeMgr := &api.ACMEManager{
-			DirectoryURL:  apiCfg.ACME.DirectoryURL,
-			Email:         apiCfg.ACME.Email,
-			ChallengeType: apiCfg.ACME.ChallengeType,
-			Domains:       apiCfg.ACME.Domains,
+			DirectoryURL:  cfg.ACME.DirectoryURL,
+			Email:         cfg.ACME.Email,
+			ChallengeType: cfg.ACME.ChallengeType,
+			Domains:       cfg.ACME.Domains,
 			Reloader:      srv,
+			CertStore:     acmeCertStore,
 		}
 		acmeCtx, acmeCancel := context.WithCancel(ctx)
 		// goroutine lifecycle: bound to acmeCtx (derived from ctx); Run
@@ -277,11 +331,15 @@ func startAPIServer(ctx context.Context, rt *runtime, errCh chan<- error) (stopF
 		go func() {
 			if err := acmeMgr.Run(acmeCtx); err != nil {
 				rt.logger.Error("acme manager exited", zap.Error(err))
+				select {
+				case errCh <- fmt.Errorf("acme manager: %w", err):
+				default:
+				}
 			}
 			acmeCancel()
 		}()
 		rt.logger.Info("acme manager started",
-			zap.String("directory", apiCfg.ACME.DirectoryURL),
+			zap.String("directory", cfg.ACME.DirectoryURL),
 			zap.Strings("domains", acmeMgr.Domains),
 		)
 	}
@@ -309,6 +367,7 @@ func startAPIServer(ctx context.Context, rt *runtime, errCh chan<- error) (stopF
 	rt.logger.Info("api server started", zap.String("addr", sc.Addr))
 
 	return func(ctx context.Context) error {
+		wsH.Stop()
 		return srv.Shutdown(ctx)
 	}, nil
 }

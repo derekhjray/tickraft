@@ -13,8 +13,8 @@ import (
 
 	"github.com/tickraft/tickraft/pkg/asset"
 	"github.com/tickraft/tickraft/pkg/event"
-	a "github.com/tickraft/tickraft/pkg/prism/alert"
 	"github.com/tickraft/tickraft/pkg/pagination"
+	a "github.com/tickraft/tickraft/pkg/prism/alert"
 	"github.com/tickraft/tickraft/pkg/task"
 	"github.com/tickraft/tickraft/pkg/telemetry"
 	"github.com/tickraft/tickraft/pkg/types"
@@ -45,6 +45,10 @@ type stubAssetStore struct {
 	updateErr     error
 }
 
+func (s *stubAssetStore) CountByStatus(_ context.Context) (map[string]int64, error) {
+	return map[string]int64{}, nil
+}
+
 func (s *stubAssetStore) Create(context.Context, *asset.Asset) error {
 	return nil
 }
@@ -70,7 +74,7 @@ func (s *stubAssetStore) UpdateStatus(_ context.Context, id int64, status types.
 	return nil
 }
 func (s *stubAssetStore) Migrate(context.Context) error { return nil }
-func (s *stubAssetStore) List(context.Context, int, int) ([]*asset.Asset, int64, error) {
+func (s *stubAssetStore) List(context.Context, int, int, asset.ListFilter) ([]*asset.Asset, int64, error) {
 	return nil, 0, nil
 }
 func (s *stubAssetStore) ListKeyset(_ context.Context, _ pagination.PageRequest) (pagination.PageResult[*asset.Asset], error) {
@@ -549,11 +553,10 @@ func TestMetricMatcher_AsPrismRule(t *testing.T) {
 	eng := NewEngine(zap.NewNop())
 	matcher := NewMetricMatcher(eng, nil)
 
-	alertEng := mustNewPrism(t)
-	defer alertEng.Stop(context.Background())
-	alertEng.AddRule(matcher)
+	target := mustNewTarget(t)
+	target.AddRule(matcher)
 
-	registered := alertEng.Rules()
+	registered := target.Rules()
 	if len(registered) != 1 {
 		t.Fatalf("expected 1 rule registered, got %d", len(registered))
 	}
